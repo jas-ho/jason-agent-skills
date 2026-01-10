@@ -243,9 +243,39 @@ main() {
             --lon) lon="$2"; shift 2 ;;
             -c|--compare) compare="$2"; shift 2 ;;
             -h|--help) usage ;;
-            *) echo "Unknown option: $1" >&2; exit 1 ;;
+            *)
+                echo "Unknown option: $1" >&2
+                echo "Use --help for usage information" >&2
+                exit 1
+                ;;
         esac
     done
+
+    # === Argument Validation ===
+
+    # Check for partial coordinates
+    if [[ -n "$lat" && -z "$lon" ]] || [[ -z "$lat" && -n "$lon" ]]; then
+        echo "Error: Both --lat and --lon are required for coordinate lookup" >&2
+        exit 1
+    fi
+
+    # Validate lat/lon format and range
+    if [[ -n "$lat" ]]; then
+        if ! [[ "$lat" =~ ^-?[0-9]+\.?[0-9]*$ ]]; then
+            echo "Error: Invalid latitude format: $lat (expected decimal degrees)" >&2
+            exit 1
+        fi
+        if ! [[ "$lon" =~ ^-?[0-9]+\.?[0-9]*$ ]]; then
+            echo "Error: Invalid longitude format: $lon (expected decimal degrees)" >&2
+            exit 1
+        fi
+        # Warn if outside Austria bounds (45-49°N, 9-18°E) but allow
+        if (( $(echo "$lat < 45 || $lat > 49" | bc -l) )) || \
+           (( $(echo "$lon < 9 || $lon > 18" | bc -l) )); then
+            echo "Warning: Coordinates ($lat, $lon) appear to be outside Austria" >&2
+            echo "         Avalanche data may not be available for this location" >&2
+        fi
+    fi
 
     # Handle compare mode
     if [[ -n "$compare" ]]; then
