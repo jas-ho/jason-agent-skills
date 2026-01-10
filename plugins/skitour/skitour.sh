@@ -72,6 +72,9 @@ declare -A REGION_NAMES=(
     ["AT-07-12"]="Silvretta Ost"
     ["AT-07-14-01"]="Kaunergrat"
     ["AT-07-14-02"]="Kühtai - Geigenkamm"
+    ["AT-07-14-03"]="Sellrain - Alpeiner Berge"
+    ["AT-07-14-04"]="Kalkkögel"
+    ["AT-07-14-05"]="Serleskamm"
     ["AT-07-15"]="Tuxer Alpen West"
     ["AT-07-17-01"]="Kitzbüheler Alpen Brixental"
     ["AT-07-20"]="Weißkugelgruppe"
@@ -81,8 +84,14 @@ declare -A REGION_NAMES=(
 
     # Carinthia (AT-02)
     ["AT-02-01-01"]="Glocknergruppe Pasterze"
+    ["AT-02-01-02-01"]="Goldberggruppe Süd"
+    ["AT-02-01-02-02"]="Sadniggruppe"
+    ["AT-02-02"]="Schobergruppe Ost"
     ["AT-02-03-01-01"]="Ankogel- Hochalmgruppe"
+    ["AT-02-03-01-02"]="Reisseckgruppe"
+    ["AT-02-03-02"]="Hafnergruppe"
     ["AT-02-04-01"]="Nockberge Mitte"
+    ["AT-02-04-02"]="Nockberge Süd"
 
     # Vorarlberg (AT-08)
     ["AT-08-03-01"]="Allgäuer Alpen"
@@ -373,10 +382,30 @@ main() {
             exit 1
         fi
     elif [[ -n "$lat" && -n "$lon" ]]; then
-        # TODO: Implement coordinate → region lookup using EAWS polygons
-        echo "Coordinate lookup not yet implemented."
-        echo "Use --location with a known location: ${!LOCATIONS[*]}"
-        exit 1
+        # Coordinate lookup using EAWS polygon data
+        local script_dir
+        script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        local lookup_script="${script_dir}/region_lookup.py"
+
+        if [[ ! -f "$lookup_script" ]]; then
+            echo "Error: region_lookup.py not found" >&2
+            echo "Use --location with a known location: ${!LOCATIONS[*]}"
+            exit 1
+        fi
+
+        local result
+        if ! result=$(uv run --script "$lookup_script" "$lat" "$lon" 2>/dev/null); then
+            echo "Could not determine avalanche region for coordinates ($lat, $lon)"
+            echo "The location may be outside covered Austrian alpine regions."
+            echo "Use --location with a known location: ${!LOCATIONS[*]}"
+            exit 1
+        fi
+
+        local region micro
+        region=$(echo "$result" | jq -r '.region_code')
+        micro=$(echo "$result" | jq -r '.micro_region')
+
+        show_location "custom ($lat,$lon)" "$lat" "$lon" "$region" "$micro"
     else
         usage
     fi
