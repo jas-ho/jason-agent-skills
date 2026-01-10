@@ -4,8 +4,15 @@
 
 set -euo pipefail
 
+# === Dependency Check ===
+for cmd in jq curl bc; do
+    if ! command -v "$cmd" &> /dev/null; then
+        echo "Error: $cmd is required but not installed." >&2
+        exit 1
+    fi
+done
+
 # === Configuration ===
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Known touring locations with coordinates and region mappings
 declare -A LOCATIONS=(
@@ -41,7 +48,6 @@ Options:
     --lat LAT               Latitude (decimal degrees)
     --lon LON               Longitude (decimal degrees)
     -c, --compare LIST      Compare locations (comma-separated)
-    -d, --date DATE         Target date (YYYY-MM-DD, default: today)
     -h, --help              Show this help
 
 Examples:
@@ -62,7 +68,7 @@ get_avalanche_data() {
     local url="https://static.lawinen-warnung.eu/bulletins/latest/${region_code}.json"
     local response
 
-    if ! response=$(curl -sf "$url" 2>/dev/null); then
+    if ! response=$(curl -sf --max-time 10 "$url" 2>/dev/null); then
         echo "ERROR: Failed to fetch avalanche data for $region_code"
         return 1
     fi
@@ -98,7 +104,7 @@ get_snow_depth() {
     url+="?parameters=snow_depth&lat_lon=${lat},${lon}&start=${yesterday}&end=${today}&output_format=csv"
 
     local response
-    if ! response=$(curl -sf "$url" 2>/dev/null); then
+    if ! response=$(curl -sf --max-time 10 "$url" 2>/dev/null); then
         echo "ERROR: Failed to fetch snow depth"
         return 1
     fi
@@ -127,7 +133,7 @@ get_weather() {
     url+="&forecast_days=2"
     url+="&timezone=Europe/Vienna"
 
-    curl -sf "$url" 2>/dev/null || echo '{"error": "fetch failed"}'
+    curl -sf --max-time 10 "$url" 2>/dev/null || echo '{"error": "fetch failed"}'
 }
 
 # Format danger level (handles both text and numeric)
@@ -225,7 +231,7 @@ show_location() {
 
 # === Main ===
 main() {
-    local location="" lat="" lon="" compare="" date=""
+    local location="" lat="" lon="" compare=""
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -233,9 +239,8 @@ main() {
             --lat) lat="$2"; shift 2 ;;
             --lon) lon="$2"; shift 2 ;;
             -c|--compare) compare="$2"; shift 2 ;;
-            -d|--date) date="$2"; shift 2 ;;
             -h|--help) usage ;;
-            *) echo "Unknown option: $1"; usage ;;
+            *) echo "Unknown option: $1" >&2; exit 1 ;;
         esac
     done
 

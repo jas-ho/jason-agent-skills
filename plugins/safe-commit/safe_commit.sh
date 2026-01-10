@@ -158,7 +158,7 @@ autofix_python() {
 autofix_shell() {
     local file="$1"
 
-    # shellcheck does not have an auto-fix mode, only shfmt
+    # Note: shellcheck has no auto-fix mode, only shfmt does
     # shfmt is not a Python tool, so PATH only
     if command -v shfmt >/dev/null 2>&1; then
         shfmt -w "$file" >/dev/null 2>&1 || true

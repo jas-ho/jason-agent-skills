@@ -5,7 +5,7 @@ Personal collection of agent skills.
 ## Installation
 
 ```bash
-/plugin marketplace add jasonhoelscherobermaier/jason-agent-skills
+/plugin marketplace add jas-ho/jason-agent-skills
 /plugin install <skill-name>@jason-agent-skills
 ```
 
