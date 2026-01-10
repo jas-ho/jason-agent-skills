@@ -15,25 +15,80 @@ done
 # === Configuration ===
 
 # Known touring locations with coordinates and region mappings
+# Format: "lat,lon,region_code,micro_region"
 declare -A LOCATIONS=(
+    # === Lower Austria (AT-03) ===
     ["rax"]="47.706,15.733,AT-03,AT-03-04"
     ["schneeberg"]="47.767,15.807,AT-03,AT-03-04"
+    ["otscher"]="47.867,15.200,AT-03,AT-03-01"
+    ["durrenstein"]="47.850,15.050,AT-03,AT-03-01"
+
+    # === Styria (AT-06) ===
     ["hochschwab"]="47.617,15.133,AT-06,AT-06-10"
     ["schneealpe"]="47.683,15.583,AT-06,AT-06-11"
     ["veitsch"]="47.617,15.517,AT-06,AT-06-11"
-    ["otscher"]="47.867,15.200,AT-03,AT-03-01"
-    ["durrenstein"]="47.850,15.050,AT-03,AT-03-01"
     ["stuhleck"]="47.583,15.767,AT-06,AT-06-11"
+
+    # === Tyrol (AT-07) ===
+    ["stubai"]="47.111,11.308,AT-07,AT-07-22"
+    ["obergurgl"]="46.871,11.028,AT-07,AT-07-21"
+    ["soelden"]="46.967,11.007,AT-07,AT-07-20"
+    ["mayrhofen"]="47.167,11.864,AT-07,AT-07-23-01"
+    ["hintertux"]="47.115,11.682,AT-07,AT-07-15"
+    ["kuehtai"]="47.214,11.023,AT-07,AT-07-14-02"
+    ["stanton"]="47.129,10.266,AT-07,AT-07-10"
+    ["galtuer"]="46.968,10.187,AT-07,AT-07-12"
+    ["kaunertal"]="47.028,10.745,AT-07,AT-07-14-01"
+    ["seefeld"]="47.329,11.187,AT-07,AT-07-04-01"
+    ["kitzbuehel"]="47.446,12.391,AT-07,AT-07-17-01"
+
+    # === Carinthia (AT-02) ===
+    ["heiligenblut"]="47.039,12.841,AT-02,AT-02-01-01"
+    ["badkleinkirchheim"]="46.814,13.798,AT-02,AT-02-04-01"
+    ["mallnitz"]="46.989,13.171,AT-02,AT-02-03-01-01"
+
+    # === Vorarlberg (AT-08) ===
+    ["lech"]="47.209,10.140,AT-08,AT-08-05-01"
+    ["gargellen"]="46.972,9.919,AT-08,AT-08-04"
+    ["kleinwalsertal"]="47.332,10.139,AT-08,AT-08-03-01"
+    ["brand"]="47.104,9.738,AT-08,AT-08-06"
 )
 
 # EAWS micro-region names (for display)
 declare -A REGION_NAMES=(
+    # Lower Austria (AT-03)
     ["AT-03-01"]="Ybbstaler Alpen"
     ["AT-03-04"]="Rax - Schneeberggebiet"
     ["AT-03-06"]="Gippel - Göllergebiet"
+
+    # Styria (AT-06)
     ["AT-06-09"]="Eisenerzer Alpen"
     ["AT-06-10"]="Hochschwab"
     ["AT-06-11"]="Mürzsteger Alpen"
+
+    # Tyrol (AT-07)
+    ["AT-07-04-01"]="Karwendel West"
+    ["AT-07-10"]="Verwallgruppe Mitte"
+    ["AT-07-12"]="Silvretta Ost"
+    ["AT-07-14-01"]="Kaunergrat"
+    ["AT-07-14-02"]="Kühtai - Geigenkamm"
+    ["AT-07-15"]="Tuxer Alpen West"
+    ["AT-07-17-01"]="Kitzbüheler Alpen Brixental"
+    ["AT-07-20"]="Weißkugelgruppe"
+    ["AT-07-21"]="Gurgler Gruppe"
+    ["AT-07-22"]="Stubaier Alpen Mitte"
+    ["AT-07-23-01"]="Zillertaler Alpen Nordwest"
+
+    # Carinthia (AT-02)
+    ["AT-02-01-01"]="Glocknergruppe Pasterze"
+    ["AT-02-03-01-01"]="Ankogel- Hochalmgruppe"
+    ["AT-02-04-01"]="Nockberge Mitte"
+
+    # Vorarlberg (AT-08)
+    ["AT-08-03-01"]="Allgäuer Alpen"
+    ["AT-08-04"]="Silvretta - Samnaun"
+    ["AT-08-05-01"]="Verwall"
+    ["AT-08-06"]="Rätikon"
 )
 
 # === Helper Functions ===
@@ -60,13 +115,26 @@ EOF
     exit 0
 }
 
-# Get avalanche bulletin from lawinen-warnung.eu
+# Get avalanche bulletin from appropriate API
+# AT-02 (Carinthia) and AT-07 (Tyrol) use static.avalanche.report
+# AT-03, AT-06, AT-08 use static.lawinen-warnung.eu
 get_avalanche_data() {
     local region_code="$1"  # e.g., AT-03
     local micro_region="$2"  # e.g., AT-03-04
 
-    local url="https://static.lawinen-warnung.eu/bulletins/latest/${region_code}.json"
-    local response
+    local url response
+    local today
+    today=$(date +%Y-%m-%d)
+
+    # Select API based on region
+    case "$region_code" in
+        AT-02|AT-07)
+            url="https://static.avalanche.report/bulletins/${today}/${region_code}.json"
+            ;;
+        *)
+            url="https://static.lawinen-warnung.eu/bulletins/latest/${region_code}.json"
+            ;;
+    esac
 
     if ! response=$(curl -sf --max-time 10 "$url" 2>/dev/null); then
         echo "ERROR: Failed to fetch avalanche data for $region_code"
