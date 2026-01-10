@@ -207,19 +207,22 @@ show_location() {
     weather_json=$(get_weather "$lat" "$lon")
 
     if [[ "$weather_json" != *"error"* ]]; then
-        # Show next 12 hours in compact format
+        # Show next 12 hours in compact format (single jq call instead of 60)
         echo "   Hour  Temp   Wind    Cloud  Precip%"
-        for i in {0..11}; do
-            local hour temp wind cloud precip
-            hour=$(echo "$weather_json" | jq -r ".hourly.time[$i] // empty" | cut -dT -f2 | cut -d: -f1 | sed 's/^0//')
-            temp=$(echo "$weather_json" | jq -r ".hourly.temperature_2m[$i] // 0")
-            wind=$(echo "$weather_json" | jq -r ".hourly.windspeed_10m[$i] // 0")
-            cloud=$(echo "$weather_json" | jq -r ".hourly.cloudcover[$i] // 0")
-            precip=$(echo "$weather_json" | jq -r ".hourly.precipitation_probability[$i] // 0")
-
-            # Skip if hour is empty (no more data)
-            [[ -z "$hour" ]] && continue
-
+        echo "$weather_json" | jq -r '
+            . as $root |
+            range(12) |
+            . as $i |
+            ($root.hourly.time[$i] // empty) as $time |
+            if $time then
+                ($time | split("T")[1] | split(":")[0] | ltrimstr("0") | if . == "" then "0" else . end) as $hour |
+                ($root.hourly.temperature_2m[$i] // 0) as $temp |
+                ($root.hourly.windspeed_10m[$i] // 0) as $wind |
+                ($root.hourly.cloudcover[$i] // 0) as $cloud |
+                ($root.hourly.precipitation_probability[$i] // 0) as $precip |
+                "\($hour)\t\($temp)\t\($wind)\t\($cloud)\t\($precip)"
+            else empty end
+        ' | while IFS=$'\t' read -r hour temp wind cloud precip; do
             printf "   %02d:00 %5.1f°C %5.0fkm/h %4.0f%%   %3.0f%%\n" \
                 "$hour" "$temp" "$wind" "$cloud" "$precip"
         done
