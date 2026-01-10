@@ -1,0 +1,34 @@
+{
+  "name": "jason-agent-skills",
+  "owner": {
+    "name": "Jason Hoelscher-Obermaier",
+    "email": "jason.hoelscherobermaier@gmail.com"
+  },
+  "metadata": {
+    "description": "Personal collection of useful agent skills",
+    "version": "0.1.0",
+    "pluginRoot": "./plugins"
+  },
+  "plugins": [
+    {
+      "name": "weather",
+      "source": "weather",
+      "description": "Weather forecasts with cloud cover, wind, and precipitation. Auto-selects ICON-D2 for Alps/Europe."
+    },
+    {
+      "name": "safe-commit",
+      "source": "safe-commit",
+      "description": "Code quality validation and safe git commits. Supports Python, Shell, Markdown."
+    },
+    {
+      "name": "archive-analysis",
+      "source": "archive-analysis",
+      "description": "Archive temporary analysis files while preserving insights to task tracking."
+    },
+    {
+      "name": "skitour",
+      "source": "skitour",
+      "description": "Ski touring conditions for Austrian Alps - avalanche danger, snow depth, and weather."
+    }
+  ]
+}
