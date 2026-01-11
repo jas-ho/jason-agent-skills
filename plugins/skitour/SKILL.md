@@ -39,6 +39,10 @@ Get combined avalanche, snow, and weather data for ski touring in the Austrian A
 ./skitour.sh --compare "stubai,rax,lech"
 ```
 
+### Coordinate Lookup
+
+When using `--lat` and `--lon`, the script automatically determines the correct EAWS micro-region using a Python helper (`region_lookup.py`) that performs point-in-polygon matching against official EAWS GeoJSON boundaries. This requires `uv` to be installed.
+
 ## Available Locations
 
 | Region | Locations |
@@ -68,9 +72,9 @@ Get combined avalanche, snow, and weather data for ski touring in the Austrian A
 🔺 AVALANCHE DANGER
 ─────────────────────────────────────────────────────────────────
    Danger level: 2 - Moderate
-   Trend: increasing
+   Trend: steady
    Main problem: wind_slab
-   Valid until: 2026-01-10
+   Valid until: <date>
 
 ❄️  SNOW DEPTH
 ─────────────────────────────────────────────────────────────────
@@ -80,10 +84,10 @@ Get combined avalanche, snow, and weather data for ski touring in the Austrian A
 ─────────────────────────────────────────────────────────────────
    Hour  Temp   Wind    Cloud  Precip%
    06:00  -6.2°C     2km/h   77%     0%
-   07:00  -6.3°C     5km/h   97%     0%
-   08:00  -5.7°C     5km/h  100%     0%
    ...
 ```
+
+If the bulletin's `Valid until` date is before today, a ⚠️ warning indicates the data may be outdated.
 
 ## Limitations
 
