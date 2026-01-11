@@ -4,6 +4,14 @@
 
 set -euo pipefail
 
+# === Bash Version Check ===
+# Associative arrays require bash 4.0+
+if ((BASH_VERSINFO[0] < 4)); then
+    echo "Error: bash 4.0+ required (found $BASH_VERSION)" >&2
+    echo "On macOS: brew install bash" >&2
+    exit 1
+fi
+
 # === Dependency Check ===
 for cmd in jq curl bc; do
     if ! command -v "$cmd" &> /dev/null; then
@@ -167,6 +175,8 @@ get_avalanche_data() {
 }
 
 # Get snow depth from GeoSphere SNOWGRID
+# Returns: snow depth in cm, or "N/A" if unavailable
+# Exit code: 0 on success, 1 on failure
 get_snow_depth() {
     local lat="$1"
     local lon="$2"
@@ -174,15 +184,13 @@ get_snow_depth() {
     # SNOWGRID data is 1 day behind, so query yesterday
     local yesterday
     yesterday=$(date -v-1d +%Y-%m-%d 2>/dev/null || date -d "yesterday" +%Y-%m-%d)
-    local today
-    today=$(date +%Y-%m-%d)
 
     local url="https://dataset.api.hub.geosphere.at/v1/timeseries/historical/snowgrid_cl-v2-1d-1km"
-    url+="?parameters=snow_depth&lat_lon=${lat},${lon}&start=${yesterday}&end=${today}&output_format=csv"
+    url+="?parameters=snow_depth&lat_lon=${lat},${lon}&start=${yesterday}&end=${yesterday}&output_format=csv"
 
     local response
     if ! response=$(curl -sf --max-time 10 "$url" 2>/dev/null); then
-        echo "ERROR: Failed to fetch snow depth"
+        echo "N/A"
         return 1
     fi
 
@@ -191,7 +199,9 @@ get_snow_depth() {
     depth=$(echo "$response" | tail -1 | cut -d',' -f2 | tr -d ' ')
 
     if [[ -z "$depth" || "$depth" == "snow_depth" ]]; then
-        echo "0"
+        # No data available (header only or empty)
+        echo "N/A"
+        return 1
     else
         # Convert from meters to cm
         printf "%.0f" "$(echo "$depth * 100" | bc -l 2>/dev/null || echo "0")"
@@ -199,6 +209,7 @@ get_snow_depth() {
 }
 
 # Get weather forecast from Open-Meteo ICON-D2
+# Exit code: 0 on success, 1 on failure
 get_weather() {
     local lat="$1"
     local lon="$2"
@@ -207,10 +218,14 @@ get_weather() {
     url+="?latitude=${lat}&longitude=${lon}"
     url+="&hourly=temperature_2m,windspeed_10m,winddirection_10m,precipitation_probability,cloudcover"
     url+="&models=icon_d2"
-    url+="&forecast_days=2"
+    url+="&forecast_days=2"  # ICON-D2 model provides 48h forecasts
     url+="&timezone=Europe/Vienna"
 
-    curl -sf --max-time 10 "$url" 2>/dev/null || echo '{"error": "fetch failed"}'
+    local response
+    if ! response=$(curl -sf --max-time 10 "$url" 2>/dev/null); then
+        return 1
+    fi
+    echo "$response"
 }
 
 # Format danger level (handles both text and numeric)
@@ -244,9 +259,8 @@ show_location() {
     echo "🔺 AVALANCHE DANGER"
     echo "─────────────────────────────────────────────────────────────────"
     local avy_data
-    avy_data=$(get_avalanche_data "$region_code" "$micro_region")
-
-    if [[ "$avy_data" != *"ERROR"* && "$avy_data" != *"unavailable"* ]]; then
+    if avy_data=$(get_avalanche_data "$region_code" "$micro_region") && \
+       [[ "$avy_data" != *"unavailable"* ]]; then
         local danger_above danger_below treeline trend problem valid
         danger_above=$(echo "$avy_data" | jq -r '.dangerAbove // "unknown"')
         danger_below=$(echo "$avy_data" | jq -r '.dangerBelow // "unknown"')
@@ -265,7 +279,7 @@ show_location() {
         [[ "$problem" != "none" && "$problem" != "null" && -n "$problem" ]] && echo "   Main problem: $problem"
         [[ -n "$valid" ]] && echo "   Valid until: $valid"
     else
-        echo "   Avalanche data unavailable"
+        echo "   ❌ Avalanche data unavailable"
     fi
     echo
 
@@ -273,17 +287,18 @@ show_location() {
     echo "❄️  SNOW DEPTH"
     echo "─────────────────────────────────────────────────────────────────"
     local snow_cm
-    snow_cm=$(get_snow_depth "$lat" "$lon")
-    echo "   Current: ${snow_cm} cm (SNOWGRID, 1 day behind)"
+    if snow_cm=$(get_snow_depth "$lat" "$lon") && [[ "$snow_cm" != "N/A" ]]; then
+        echo "   Current: ${snow_cm} cm (SNOWGRID, 1 day behind)"
+    else
+        echo "   ❌ Snow depth data unavailable"
+    fi
     echo
 
     # Weather
     echo "🌤️  WEATHER FORECAST"
     echo "─────────────────────────────────────────────────────────────────"
     local weather_json
-    weather_json=$(get_weather "$lat" "$lon")
-
-    if [[ "$weather_json" != *"error"* ]]; then
+    if weather_json=$(get_weather "$lat" "$lon"); then
         # Show next 12 hours in compact format (single jq call instead of 60)
         echo "   Hour  Temp   Wind    Cloud  Precip%"
         echo "$weather_json" | jq -r '
@@ -304,7 +319,7 @@ show_location() {
                 "$hour" "$temp" "$wind" "$cloud" "$precip"
         done
     else
-        echo "   Weather data unavailable"
+        echo "   ❌ Weather data unavailable"
     fi
     echo
 }
