@@ -109,6 +109,30 @@ declare -A REGION_NAMES=(
 )
 
 # === Helper Functions ===
+
+# Display locations grouped by region
+show_locations_by_region() {
+    local -A by_region
+    local loc region
+    for loc in "${!LOCATIONS[@]}"; do
+        IFS=',' read -r _ _ region _ <<< "${LOCATIONS[$loc]}"
+        by_region[$region]+="$loc "
+    done
+
+    echo "Available locations:"
+    # Display in consistent order (Tyrol first as most popular)
+    for region in AT-07 AT-02 AT-08 AT-03 AT-06; do
+        case "$region" in
+            AT-07) echo -n "  Tyrol:          " ;;
+            AT-02) echo -n "  Carinthia:      " ;;
+            AT-08) echo -n "  Vorarlberg:     " ;;
+            AT-03) echo -n "  Lower Austria:  " ;;
+            AT-06) echo -n "  Styria:         " ;;
+        esac
+        echo "${by_region[$region]}"
+    done
+}
+
 usage() {
     cat <<EOF
 Usage: $(basename "$0") [OPTIONS]
@@ -127,8 +151,8 @@ Examples:
     $(basename "$0") --lat 47.617 --lon 15.133
     $(basename "$0") --compare "rax,hochschwab,schneealpe"
 
-Available locations: ${!LOCATIONS[*]}
 EOF
+    show_locations_by_region
     exit 0
 }
 
@@ -153,6 +177,7 @@ get_avalanche_data() {
             ;;
     esac
 
+    # 10s timeout balances responsiveness with reliability for API calls
     if ! response=$(curl -sf --max-time 10 "$url" 2>/dev/null); then
         echo "Error: Failed to fetch avalanche data for $region_code" >&2
         return 1
@@ -386,8 +411,8 @@ main() {
             loc="${loc,,}"  # lowercase
             loc="${loc// /}"  # remove spaces
             if [[ -v "LOCATIONS[$loc]" ]]; then
-                IFS=',' read -r lat lon region micro <<< "${LOCATIONS[$loc]}"
-                show_location "$loc" "$lat" "$lon" "$region" "$micro"
+                IFS=',' read -r lat lon region micro_region <<< "${LOCATIONS[$loc]}"
+                show_location "$loc" "$lat" "$lon" "$region" "$micro_region"
             else
                 echo "Error: Unknown location: $loc" >&2
                 echo "Available: ${!LOCATIONS[*]}" >&2
@@ -399,8 +424,8 @@ main() {
     # Single location mode
     if [[ -n "$location" ]]; then
         if [[ -v "LOCATIONS[$location]" ]]; then
-            IFS=',' read -r lat lon region micro <<< "${LOCATIONS[$location]}"
-            show_location "$location" "$lat" "$lon" "$region" "$micro"
+            IFS=',' read -r lat lon region micro_region <<< "${LOCATIONS[$location]}"
+            show_location "$location" "$lat" "$lon" "$region" "$micro_region"
         else
             echo "Error: Unknown location: $location" >&2
             echo "Available: ${!LOCATIONS[*]}" >&2
@@ -433,11 +458,11 @@ main() {
             exit 1
         fi
 
-        local region micro
+        local region micro_region
         region=$(echo "$result" | jq -r '.region_code')
-        micro=$(echo "$result" | jq -r '.micro_region')
+        micro_region=$(echo "$result" | jq -r '.micro_region')
 
-        show_location "custom ($lat,$lon)" "$lat" "$lon" "$region" "$micro"
+        show_location "custom ($lat,$lon)" "$lat" "$lon" "$region" "$micro_region"
     else
         usage
     fi
