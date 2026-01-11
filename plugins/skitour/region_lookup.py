@@ -109,7 +109,11 @@ def main() -> int:
         print(json.dumps(result))
         return 0
     else:
-        print("No matching region found", file=sys.stderr)
+        print(
+            f"No matching EAWS region found for coordinates ({lat}, {lon})",
+            file=sys.stderr,
+        )
+        print("Coordinates may be outside Austrian alpine coverage.", file=sys.stderr)
         return 1
 
 
