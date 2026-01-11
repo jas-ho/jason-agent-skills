@@ -154,7 +154,7 @@ get_avalanche_data() {
     esac
 
     if ! response=$(curl -sf --max-time 10 "$url" 2>/dev/null); then
-        echo "ERROR: Failed to fetch avalanche data for $region_code"
+        echo "Error: Failed to fetch avalanche data for $region_code" >&2
         return 1
     fi
 
@@ -336,7 +336,7 @@ main() {
             -c|--compare) compare="$2"; shift 2 ;;
             -h|--help) usage ;;
             *)
-                echo "Unknown option: $1" >&2
+                echo "Error: Unknown option: $1" >&2
                 echo "Use --help for usage information" >&2
                 exit 1
                 ;;
@@ -353,11 +353,12 @@ main() {
 
     # Validate lat/lon format and range
     if [[ -n "$lat" ]]; then
-        if ! [[ "$lat" =~ ^-?[0-9]+\.?[0-9]*$ ]]; then
+        # Stricter regex: requires digits before decimal, optional decimal with digits after
+        if ! [[ "$lat" =~ ^-?[0-9]+(\.[0-9]+)?$ ]]; then
             echo "Error: Invalid latitude format: $lat (expected decimal degrees)" >&2
             exit 1
         fi
-        if ! [[ "$lon" =~ ^-?[0-9]+\.?[0-9]*$ ]]; then
+        if ! [[ "$lon" =~ ^-?[0-9]+(\.[0-9]+)?$ ]]; then
             echo "Error: Invalid longitude format: $lon (expected decimal degrees)" >&2
             exit 1
         fi
@@ -379,8 +380,8 @@ main() {
                 IFS=',' read -r lat lon region micro <<< "${LOCATIONS[$loc]}"
                 show_location "$loc" "$lat" "$lon" "$region" "$micro"
             else
-                echo "Unknown location: $loc"
-                echo "Available: ${!LOCATIONS[*]}"
+                echo "Error: Unknown location: $loc" >&2
+                echo "Available: ${!LOCATIONS[*]}" >&2
             fi
         done
         exit 0
@@ -392,8 +393,8 @@ main() {
             IFS=',' read -r lat lon region micro <<< "${LOCATIONS[$location]}"
             show_location "$location" "$lat" "$lon" "$region" "$micro"
         else
-            echo "Unknown location: $location"
-            echo "Available: ${!LOCATIONS[*]}"
+            echo "Error: Unknown location: $location" >&2
+            echo "Available: ${!LOCATIONS[*]}" >&2
             exit 1
         fi
     elif [[ -n "$lat" && -n "$lon" ]]; then
@@ -403,16 +404,23 @@ main() {
         local lookup_script="${script_dir}/region_lookup.py"
 
         if [[ ! -f "$lookup_script" ]]; then
-            echo "Error: region_lookup.py not found" >&2
-            echo "Use --location with a known location: ${!LOCATIONS[*]}"
+            echo "Error: region_lookup.py not found at $lookup_script" >&2
+            echo "Use --location with a known location: ${!LOCATIONS[*]}" >&2
+            exit 1
+        fi
+
+        # Check for uv (only needed for coordinate lookup)
+        if ! command -v uv &>/dev/null; then
+            echo "Error: uv is required for coordinate lookup" >&2
+            echo "Install: curl -LsSf https://astral.sh/uv/install.sh | sh" >&2
             exit 1
         fi
 
         local result
-        if ! result=$(uv run --script "$lookup_script" "$lat" "$lon" 2>/dev/null); then
-            echo "Could not determine avalanche region for coordinates ($lat, $lon)"
-            echo "The location may be outside covered Austrian alpine regions."
-            echo "Use --location with a known location: ${!LOCATIONS[*]}"
+        if ! result=$(uv run --script "$lookup_script" "$lat" "$lon"); then
+            echo "Error: Could not determine avalanche region for coordinates ($lat, $lon)" >&2
+            echo "The location may be outside covered Austrian alpine regions." >&2
+            echo "Use --location with a known location: ${!LOCATIONS[*]}" >&2
             exit 1
         fi
 

@@ -68,8 +68,8 @@ def get_micro_region(lat: float, lon: float, parent: str) -> str | None:
             polygon = shape(feature["geometry"])
             if polygon.contains(point):
                 return feature["properties"]["id"]
-        except Exception:
-            # Skip malformed features
+        except (KeyError, TypeError, ValueError):
+            # Skip malformed features (missing geometry, invalid coordinates, etc.)
             continue
 
     return None
