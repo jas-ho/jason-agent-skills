@@ -277,7 +277,16 @@ show_location() {
         fi
         echo "   Trend: $trend"
         [[ "$problem" != "none" && "$problem" != "null" && -n "$problem" ]] && echo "   Main problem: $problem"
-        [[ -n "$valid" ]] && echo "   Valid until: $valid"
+        # Show validity with staleness warning if bulletin is outdated
+        if [[ -n "$valid" ]]; then
+            local today
+            today=$(date +%Y-%m-%d)
+            if [[ "$valid" < "$today" ]]; then
+                echo "   Valid until: $valid  ⚠️ (bulletin may be outdated)"
+            else
+                echo "   Valid until: $valid"
+            fi
+        fi
     else
         echo "   ❌ Avalanche data unavailable"
     fi
