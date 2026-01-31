@@ -6,3 +6,4 @@ tmp/
 
 # Auto-generated context files (claude-mem)
 **/CLAUDE.md
+.claude/settings.local.json
