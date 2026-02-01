@@ -222,6 +222,53 @@ def scan_hardcoded_paths(repo_path: Path, tracked_files: list[str]) -> list[dict
     return issues
 
 
+def get_git_identity(repo_path: Path) -> list[str]:
+    """Get user's git identity patterns to search for."""
+    patterns = []
+    for key in ["user.name", "user.email"]:
+        result = subprocess.run(
+            ["git", "config", key], cwd=repo_path, capture_output=True, text=True
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            value = result.stdout.strip()
+            patterns.append(value)
+            # Extract username from email (before @)
+            if "@" in value:
+                patterns.append(value.split("@")[0])
+    return [p for p in patterns if len(p) > 2]  # Skip very short patterns
+
+
+def scan_personal_refs(repo_path: Path, tracked_files: list[str]) -> list[dict]:
+    """Find references to user's git identity (name, email, username)."""
+    patterns = get_git_identity(repo_path)
+    if not patterns:
+        return []
+
+    issues = []
+    skip_ext = {".png", ".jpg", ".gif", ".pdf", ".zip", ".gz", ".tar", ".lock"}
+    skip_files = {"LICENSE", "LICENCE", "CHANGELOG.md", ".git"}
+
+    for file_path in tracked_files[:300]:
+        if any(skip in file_path for skip in skip_files):
+            continue
+        full_path = repo_path / file_path
+        if not full_path.exists() or not full_path.is_file():
+            continue
+        if full_path.suffix.lower() in skip_ext or full_path.stat().st_size > 200000:
+            continue
+
+        try:
+            content = full_path.read_text(errors="ignore")
+            for pattern in patterns:
+                if pattern.lower() in content.lower():
+                    issues.append({"file": file_path, "pattern": pattern})
+                    break  # One issue per file
+        except Exception:
+            continue
+
+    return issues
+
+
 def check_basics(repo_path: Path) -> dict:
     """Check for basic required files."""
     return {
@@ -269,6 +316,7 @@ def main():
         "broken_links": scan_links(repo_path),
         "markdown_unfixable": fix_markdown(repo_path, tracked_files),
         "hardcoded_paths": scan_hardcoded_paths(repo_path, tracked_files),
+        "personal_refs": scan_personal_refs(repo_path, tracked_files),
     }
 
     result["has_blockers"] = bool(result["secrets"])
@@ -277,6 +325,7 @@ def main():
         or result["broken_links"]
         or result["typos"]
         or result["markdown_unfixable"]
+        or result["personal_refs"]
     )
 
     print(json.dumps(result, indent=2))

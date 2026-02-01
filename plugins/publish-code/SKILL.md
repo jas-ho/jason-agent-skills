@@ -170,6 +170,7 @@ The script uses external tools (exit codes: 0=clean, 1+=issues found - this is e
 - **Broken links**: lychee - fast async link checker
 - **Markdown**: markdownlint --fix - autofixes formatting, reports unfixable
 - **Hardcoded paths**: `/Users/xxx/`, `/home/xxx/`, `C:\Users\xxx\`
+- **Personal refs**: Scans for git user.name/user.email in tracked files
 
 **Limits**: Scans first 300 tracked files, skips files >200KB. Large repos may have unscanned files.
 
@@ -183,7 +184,8 @@ The script uses external tools (exit codes: 0=clean, 1+=issues found - this is e
   "typos": [...],
   "broken_links": [...],
   "markdown_unfixable": [...],
-  "hardcoded_paths": [...]
+  "hardcoded_paths": [...],
+  "personal_refs": [...]      // username/email found in files
 }
 ```
 
@@ -194,8 +196,30 @@ Review output for:
 - `broken_links`: Update or remove
 - `typos`: Review suggestions and fix
 - `markdown_unfixable`: Manual fixes needed
+- `personal_refs`: Review if expected (LICENSE ok, README probably not)
 
-**3. Claude review of key files**
+**3. Check tracked files that should be gitignored**
+
+Run `git ls-files` and flag files that typically shouldn't be tracked:
+
+- `*.local.*` (personal settings)
+- `.env*` (even empty templates can be risky)
+- `*_cache/`, `__pycache__/`, `node_modules/`
+- `*.log`, `*.bak`, `*.tmp`
+- `.DS_Store`, `Thumbs.db`
+
+If found, untrack with `git rm --cached` and add to `.gitignore`.
+
+**4. README quality review**
+
+Check README.md manually for:
+
+- **Length**: If >300 lines, suggest splitting into docs/
+- **Structure**: Should have Install, Usage, License sections at minimum
+- **Examples**: Should be generic, not personal projects/data
+- **Links**: Verify they're useful for external users
+
+**5. Claude review of key files**
 
 Read these files and flag anything that assumes personal/org context:
 
