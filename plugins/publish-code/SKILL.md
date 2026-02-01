@@ -127,6 +127,23 @@ Read full README. Verify it has:
 - [ ] Usage example (working code or CLI invocation)
 - [ ] License mention
 
+**Also check for:**
+
+- **Broken links**: Use `curl -sI <url> | head -1` on external links. Watch for:
+  - Redirects (301/302) - update to final URL
+  - Errors (4xx/5xx) - find alternative or remove
+  - Links to docs that moved (common: GitHub wikis, readthedocs)
+
+- **Transcription typos**: Voice-transcribed READMEs often have:
+  - Split words: "shell check" → "shellcheck", "git hub" → "GitHub"
+  - Homophones: "brake" vs "break", "their" vs "there"
+  - Tool names: "j q" → "jq", "p d f" → "pdf"
+
+- **Implicit dependencies**: List ALL tools needed, including "obvious" ones:
+  - curl, jq, grep - not installed everywhere
+  - Language runtimes (python3, node)
+  - Package managers (brew, apt)
+
 If missing sections, offer to add them. Keep it concise.
 
 **2. Portability audit**
