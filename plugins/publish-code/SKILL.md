@@ -157,7 +157,7 @@ If missing sections, offer to add them. Keep it concise.
 
 **2. Portability audit**
 
-Run the audit script (requires uv, located alongside this SKILL.md):
+Run the audit script (in the same directory as this SKILL.md):
 
 ```bash
 ./audit.py [repo-path]
