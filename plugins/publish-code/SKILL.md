@@ -74,7 +74,17 @@ Ask which license:
 - **MIT** - Simple, permissive. Best for utilities/libraries.
 - **Apache-2.0** - Adds patent protection. Better for applications.
 
-Generate the file. Use current year and "Jason Hoelscher-Obermaier" as copyright holder.
+Fetch from GitHub API and substitute placeholders:
+
+```bash
+gh api /licenses/mit --jq '.body' | sed "s/\[year\]/$(date +%Y)/g" | sed 's/\[fullname\]/Jason Hoelscher-Obermaier/g' > LICENSE
+```
+
+For Apache-2.0:
+```bash
+gh api /licenses/apache-2.0 --jq '.body' > LICENSE
+# Apache doesn't need year/name substitution in the license file itself
+```
 
 **2. Quick sanity check**
 
