@@ -1,6 +1,6 @@
 # jason-agent-skills
 
-Personal collection of agent skills.
+Claude Code skills for weather, ski touring, code commits, and file management.
 
 ## Installation
 
@@ -13,11 +13,20 @@ Personal collection of agent skills.
 
 | Skill | Description |
 |-------|-------------|
-| weather | Weather forecasts with cloud cover, wind, precipitation |
-| skitour | Ski touring: avalanche danger, snow depth, weather (Austrian Alps) |
-| safe-commit | Code quality validation and safe git commits |
-| archive-analysis | Archive temporary analysis files |
+| weather | Weather forecasts with cloud cover, wind, precipitation. Auto-selects best model (ICON-D2 for Alps, global elsewhere). |
+| skitour | Ski touring conditions for Austrian Alps - avalanche danger, snow depth, and weather combined. |
+| safe-commit | Code quality validation (ruff, mypy, shellcheck, markdownlint) with auto-fixes before git commits. |
+| archive-analysis | Archive temporary analysis files to git history while keeping working tree clean. |
+| spotlight-search | macOS Spotlight search (mdfind) for fast file discovery across PDFs, Office docs, plain text. |
+| publish-code | Guide a repo from private to public - license, portability audit, GitHub visibility. |
 
-## Development
+## Requirements
 
-Uses [beads](https://github.com/steveyegge/beads) for issue tracking.
+- **macOS** (required for spotlight-search; other skills work cross-platform)
+- **Bash 4.0+** for skitour (`brew install bash` on macOS)
+- **jq**, **curl** for weather and skitour
+- Various linters for safe-commit (ruff, mypy, shellcheck, markdownlint - optional, validates what's available)
+
+## License
+
+MIT
