@@ -13,7 +13,9 @@ import json
 import re
 import subprocess
 import sys
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
+from urllib.parse import urlparse
 
 
 def get_tracked_files(repo_path: Path) -> list[str]:
@@ -231,6 +233,124 @@ def scan_org_references(repo_path: Path, tracked_files: list[str]) -> list[dict]
     return issues
 
 
+def check_link(url: str, timeout: int = 10) -> dict:
+    """Check a single URL, return status info."""
+    try:
+        result = subprocess.run(
+            [
+                "curl",
+                "-sI",
+                "-o",
+                "/dev/null",
+                "-w",
+                "%{http_code} %{redirect_url}",
+                "-L",
+                url,
+            ],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+        parts = result.stdout.strip().split(" ", 1)
+        status = int(parts[0]) if parts[0].isdigit() else 0
+        final_url = parts[1] if len(parts) > 1 else ""
+
+        # Check if redirected to different domain
+        original_domain = urlparse(url).netloc
+        final_domain = urlparse(final_url).netloc if final_url else original_domain
+
+        if status >= 400:
+            return {"url": url, "status": status, "issue": "error"}
+        elif final_domain and final_domain != original_domain:
+            return {
+                "url": url,
+                "status": status,
+                "issue": "redirect",
+                "final_url": final_url,
+            }
+        return {"url": url, "status": status, "issue": None}
+    except subprocess.TimeoutExpired:
+        return {"url": url, "status": 0, "issue": "timeout"}
+    except Exception as e:
+        return {"url": url, "status": 0, "issue": str(e)}
+
+
+def scan_links(repo_path: Path, tracked_files: list[str]) -> list[dict]:
+    """Extract and check links from markdown files in parallel."""
+    # Extract URLs from markdown files
+    url_pattern = re.compile(r"\[([^\]]*)\]\((https?://[^)]+)\)")
+    urls_found: dict[str, str] = {}  # url -> first file found in
+
+    for file_path in tracked_files:
+        if not file_path.endswith((".md", ".rst", ".txt")):
+            continue
+        full_path = repo_path / file_path
+        if not full_path.exists() or full_path.stat().st_size > 100000:
+            continue
+        try:
+            content = full_path.read_text(errors="ignore")
+            for match in url_pattern.finditer(content):
+                url = match.group(2)
+                if url not in urls_found:
+                    urls_found[url] = file_path
+        except Exception:
+            continue
+
+    if not urls_found:
+        return []
+
+    # Check URLs in parallel (max 10 concurrent)
+    issues = []
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        future_to_url = {executor.submit(check_link, url): url for url in urls_found}
+        for future in as_completed(future_to_url):
+            result = future.result()
+            if result["issue"]:
+                result["file"] = urls_found[result["url"]]
+                issues.append(result)
+
+    return issues
+
+
+def scan_typos(repo_path: Path, tracked_files: list[str]) -> list[dict]:
+    """Check for common transcription typos in documentation."""
+    issues = []
+
+    # Common voice transcription errors: split tool names
+    typo_patterns = [
+        (r"\bshell\s+check\b", "shellcheck"),
+        (r"\bgit\s+hub\b", "GitHub"),
+        (r"\bgit\s+lab\b", "GitLab"),
+        (r"\bj\s+q\b", "jq"),
+        (r"\bp\s+d\s+f\b", "pdf"),
+        (r"\bc\s+l\s+i\b", "CLI"),
+        (r"\ba\s+p\s+i\b", "API"),
+        (r"\bu\s+r\s+l\b", "URL"),
+    ]
+
+    for file_path in tracked_files:
+        if not file_path.endswith((".md", ".rst", ".txt")):
+            continue
+        full_path = repo_path / file_path
+        if not full_path.exists() or full_path.stat().st_size > 100000:
+            continue
+        try:
+            content = full_path.read_text(errors="ignore")
+            for pattern, correct in typo_patterns:
+                if re.search(pattern, content, re.IGNORECASE):
+                    issues.append(
+                        {
+                            "file": file_path,
+                            "pattern": pattern,
+                            "suggestion": correct,
+                        }
+                    )
+        except Exception:
+            continue
+
+    return issues
+
+
 def check_basics(repo_path: Path) -> dict:
     """Check for basic required files."""
     return {
@@ -259,6 +379,9 @@ def main():
 
     secrets, scanner_used = scan_potential_secrets(repo_path, tracked_files)
 
+    # Run link checks in parallel with other scans
+    link_issues = scan_links(repo_path, tracked_files)
+
     result = {
         "repo_path": str(repo_path),
         "repo_name": repo_path.name,
@@ -268,11 +391,18 @@ def main():
         "potential_secrets": secrets,
         "secrets_scanner": scanner_used,
         "org_references": scan_org_references(repo_path, tracked_files),
+        "broken_links": link_issues,
+        "typos": scan_typos(repo_path, tracked_files),
     }
 
     # Summary flags
     result["has_blockers"] = bool(secrets)
-    result["needs_review"] = bool(result["hardcoded_paths"] or result["org_references"])
+    result["needs_review"] = bool(
+        result["hardcoded_paths"]
+        or result["org_references"]
+        or result["broken_links"]
+        or result["typos"]
+    )
 
     print(json.dumps(result, indent=2))
 
