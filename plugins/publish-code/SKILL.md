@@ -87,7 +87,7 @@ gh api /licenses/apache-2.0 --jq '.body' > LICENSE
 
 **Verify the LICENSE file:**
 - Check it exists and has content: `wc -l LICENSE` (should be 20+ lines)
-- Check placeholders were substituted: `grep -c '\[year\]\|\[fullname\]' LICENSE` (should be 0)
+- Check placeholders were substituted: `grep -c '\[year\]\|\[fullname\]' LICENSE || true` (should be 0)
 - Quick sanity check: `head -3 LICENSE` (should show license name and copyright)
 
 **2. Quick sanity check**
