@@ -17,57 +17,75 @@ This creates a `.safe-commit-tests/` directory with files covering all major sce
 The generator creates these test files:
 
 ### 1. Clean Python File
+
 ```bash
 git add .safe-commit-tests/clean.py && .claude/skills/safe-commit/safe_commit.sh
 ```
+
 **Expected**: All checks passed, validation complete
 
 ### 2. Python with Fixable Issues
+
 ```bash
 git add .safe-commit-tests/fixable.py && .claude/skills/safe-commit/safe_commit.sh
 ```
+
 **Expected**: Auto-fixed and re-staged, then passes validation
 
 ### 3. Python with Lint Error
+
 ```bash
 git add .safe-commit-tests/lint_error.py && .claude/skills/safe-commit/safe_commit.sh
 ```
+
 **Expected**: Shows ruff/mypy error about undefined variable
 
 ### 4. Python with Type Error
+
 ```bash
 git add .safe-commit-tests/type_error.py && .claude/skills/safe-commit/safe_commit.sh
 ```
+
 **Expected**: Shows mypy type error clearly
 
 ### 5. Clean Shell Script
+
 ```bash
 git add .safe-commit-tests/clean.sh && .claude/skills/safe-commit/safe_commit.sh
 ```
+
 **Expected**: No shellcheck warnings
 
 ### 6. Shell with Issues
+
 ```bash
 git add .safe-commit-tests/shell_issue.sh && .claude/skills/safe-commit/safe_commit.sh
 ```
+
 **Expected**: Shows shellcheck warnings about unquoted variables
 
 ### 7. Local File (Hard Block)
+
 ```bash
 git add .safe-commit-tests/config.local.py && .claude/skills/safe-commit/safe_commit.sh
 ```
+
 **Expected**: Exits with error, "LOCAL FILES DETECTED (commit blocked)"
 
 ### 8. Sensitive File (Warning)
+
 ```bash
 git add .safe-commit-tests/.env.example && .claude/skills/safe-commit/safe_commit.sh
 ```
+
 **Expected**: Shows warning but allows commit
 
 ### 9. Path Handling Test
+
 ```bash
 cd .claude/skills && git add ../../.safe-commit-tests/clean.py && ../../.claude/skills/safe-commit/safe_commit.sh
 ```
+
 **Expected**: Works correctly from subdirectory, shows git root
 
 ## What to Check

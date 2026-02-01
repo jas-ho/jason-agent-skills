@@ -5,6 +5,7 @@ Archive temporary markdown files while preserving actionable insights.
 ## Usage
 
 Ask Claude to archive analysis files:
+
 - "Archive these analysis files"
 - "Archive COMPARISON.md and NOTES.md"
 - "Clean up old markdown files"

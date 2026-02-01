@@ -5,10 +5,11 @@
 # ///
 """
 Mechanical audit for publish-code skill.
-Uses external tools (gitleaks, typos) for quality checks.
+Uses external tools for quality checks - no DIY patterns.
 Returns JSON for Claude to review and act on.
 
-Required tools: gitleaks, typos (install via brew)
+Required: gitleaks, typos, lychee, markdownlint
+Install: brew install gitleaks typos-cli lychee markdownlint-cli
 """
 
 import json
@@ -16,17 +17,14 @@ import re
 import shutil
 import subprocess
 import sys
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from urllib.parse import urlparse
 
-REQUIRED_TOOLS = ["gitleaks", "typos"]
+REQUIRED_TOOLS = ["gitleaks", "typos", "lychee", "markdownlint"]
 
 
 def check_tools() -> list[str]:
     """Check for required external tools."""
-    missing = [tool for tool in REQUIRED_TOOLS if not shutil.which(tool)]
-    return missing
+    return [tool for tool in REQUIRED_TOOLS if not shutil.which(tool)]
 
 
 def get_tracked_files(repo_path: Path) -> list[str]:
@@ -45,66 +43,134 @@ def scan_secrets(repo_path: Path) -> list[dict]:
         text=True,
         timeout=60,
     )
-    # gitleaks exits 1 if secrets found, 0 if clean
     if result.returncode not in (0, 1):
         return [{"error": f"gitleaks failed: {result.stderr}"}]
-
     if not result.stdout.strip():
         return []
 
-    findings = json.loads(result.stdout)
     return [
         {
             "file": f.get("File", "unknown"),
             "line": f.get("StartLine", 0),
             "type": f.get("Description", f.get("RuleID", "secret")),
-            "severity": "HIGH",
         }
-        for f in findings
+        for f in json.loads(result.stdout)
     ]
 
 
 def scan_typos(repo_path: Path) -> list[dict]:
-    """Use typos to find spelling mistakes in code and docs."""
+    """Use typos to find spelling mistakes."""
     result = subprocess.run(
         ["typos", "--format", "json", str(repo_path)],
         capture_output=True,
         text=True,
         timeout=60,
     )
-    # typos exits 2 if typos found, 0 if clean
     if result.returncode not in (0, 2):
         return [{"error": f"typos failed: {result.stderr}"}]
-
     if not result.stdout.strip():
         return []
 
-    # typos outputs one JSON object per line
     issues = []
     for line in result.stdout.strip().split("\n"):
         if not line:
             continue
         try:
-            finding = json.loads(line)
-            if finding.get("type") == "typo":
+            f = json.loads(line)
+            if f.get("type") == "typo":
                 issues.append(
                     {
-                        "file": finding.get("path", "unknown"),
-                        "line": finding.get("line_num", 0),
-                        "typo": finding.get("typo", ""),
-                        "corrections": finding.get("corrections", []),
+                        "file": f.get("path", "unknown"),
+                        "line": f.get("line_num", 0),
+                        "typo": f.get("typo", ""),
+                        "corrections": f.get("corrections", []),
                     }
                 )
         except json.JSONDecodeError:
             continue
+    return issues
 
+
+def scan_links(repo_path: Path) -> list[dict]:
+    """Use lychee to check links in markdown files."""
+    result = subprocess.run(
+        ["lychee", "--format", "json", "--no-progress", str(repo_path)],
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    # lychee exits 0 if all ok, 1 if issues, 2 if errors
+    if result.returncode not in (0, 1, 2):
+        return [{"error": f"lychee failed: {result.stderr}"}]
+    if not result.stdout.strip():
+        return []
+
+    try:
+        data = json.loads(result.stdout)
+        issues = []
+        for file, errors in data.get("error_map", {}).items():
+            for err in errors:
+                issues.append(
+                    {
+                        "file": file,
+                        "url": err.get("url", ""),
+                        "status": err.get("status", {}).get("code", 0),
+                        "error": err.get("status", {}).get("text", "unknown"),
+                    }
+                )
+        return issues
+    except json.JSONDecodeError:
+        return [{"error": "Failed to parse lychee output"}]
+
+
+def fix_markdown(repo_path: Path, tracked_files: list[str]) -> list[dict]:
+    """Run markdownlint --fix and return unfixable issues."""
+    md_files = [str(repo_path / f) for f in tracked_files if f.endswith(".md")]
+    if not md_files:
+        return []
+
+    # Use project config if exists, otherwise use skill's relaxed defaults
+    cmd = ["markdownlint", "--fix"]
+    project_configs = [".markdownlint.json", ".markdownlintrc", ".markdownlint.yaml"]
+    if not any((repo_path / c).exists() for c in project_configs):
+        # Use skill's default config (disables noisy style rules)
+        skill_config = Path(__file__).parent / ".markdownlint.json"
+        if skill_config.exists():
+            cmd.extend(["--config", str(skill_config)])
+
+    result = subprocess.run(
+        cmd + md_files,
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    # Exit 0 = all fixed, Exit 1 = unfixable issues remain
+    if result.returncode == 0:
+        return []
+
+    # Parse stderr for remaining issues (format: "file:line rule description")
+    issues = []
+    for line in result.stderr.strip().split("\n"):
+        if not line or "error" not in line.lower():
+            continue
+        # Example: "README.md:15:9 error MD060/table-column-style ..."
+        match = re.match(r"(.+?):(\d+):\d+ error (\S+)", line)
+        if match:
+            issues.append(
+                {
+                    "file": match.group(1),
+                    "line": int(match.group(2)),
+                    "rule": match.group(3),
+                    "message": line,
+                }
+            )
     return issues
 
 
 def scan_hardcoded_paths(repo_path: Path, tracked_files: list[str]) -> list[dict]:
     """Find hardcoded user paths that break portability."""
     issues = []
-    path_patterns = [
+    patterns = [
         (r"/Users/[a-zA-Z0-9_-]+/", "macOS user path"),
         (r"/home/[a-zA-Z0-9_-]+/", "Linux user path"),
         (r"C:\\Users\\[a-zA-Z0-9_-]+\\", "Windows user path"),
@@ -131,7 +197,7 @@ def scan_hardcoded_paths(repo_path: Path, tracked_files: list[str]) -> list[dict
 
         try:
             content = full_path.read_text(errors="ignore")
-            for pattern, desc in path_patterns:
+            for pattern, desc in patterns:
                 for line_num, line in enumerate(content.split("\n"), 1):
                     if re.search(pattern, line):
                         issues.append(
@@ -148,7 +214,6 @@ def scan_hardcoded_paths(repo_path: Path, tracked_files: list[str]) -> list[dict
                 break
         except Exception:
             continue
-
     return issues
 
 
@@ -181,83 +246,6 @@ def scan_org_references(repo_path: Path, tracked_files: list[str]) -> list[dict]
                     break
         except Exception:
             continue
-
-    return issues
-
-
-def check_link(url: str, timeout: int = 10) -> dict:
-    """Check a single URL, return status info."""
-    try:
-        result = subprocess.run(
-            [
-                "curl",
-                "-sI",
-                "-o",
-                "/dev/null",
-                "-w",
-                "%{http_code} %{redirect_url}",
-                "-L",
-                url,
-            ],
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-        )
-        parts = result.stdout.strip().split(" ", 1)
-        status = int(parts[0]) if parts[0].isdigit() else 0
-        final_url = parts[1] if len(parts) > 1 else ""
-
-        original_domain = urlparse(url).netloc
-        final_domain = urlparse(final_url).netloc if final_url else original_domain
-
-        if status >= 400:
-            return {"url": url, "status": status, "issue": "error"}
-        elif final_domain and final_domain != original_domain:
-            return {
-                "url": url,
-                "status": status,
-                "issue": "redirect",
-                "final_url": final_url,
-            }
-        return {"url": url, "status": status, "issue": None}
-    except subprocess.TimeoutExpired:
-        return {"url": url, "status": 0, "issue": "timeout"}
-    except Exception as e:
-        return {"url": url, "status": 0, "issue": str(e)}
-
-
-def scan_links(repo_path: Path, tracked_files: list[str]) -> list[dict]:
-    """Check links from markdown files in parallel."""
-    url_pattern = re.compile(r"\[([^\]]*)\]\((https?://[^)]+)\)")
-    urls_found: dict[str, str] = {}
-
-    for file_path in tracked_files:
-        if not file_path.endswith((".md", ".rst", ".txt")):
-            continue
-        full_path = repo_path / file_path
-        if not full_path.exists() or full_path.stat().st_size > 100000:
-            continue
-        try:
-            content = full_path.read_text(errors="ignore")
-            for match in url_pattern.finditer(content):
-                url = match.group(2)
-                if url not in urls_found:
-                    urls_found[url] = file_path
-        except Exception:
-            continue
-
-    if not urls_found:
-        return []
-
-    issues = []
-    with ThreadPoolExecutor(max_workers=10) as executor:
-        future_to_url = {executor.submit(check_link, url): url for url in urls_found}
-        for future in as_completed(future_to_url):
-            result = future.result()
-            if result["issue"]:
-                result["file"] = urls_found[result["url"]]
-                issues.append(result)
-
     return issues
 
 
@@ -276,14 +264,13 @@ def check_basics(repo_path: Path) -> dict:
 def main():
     repo_path = Path(sys.argv[1]) if len(sys.argv) > 1 else Path.cwd()
 
-    # Check required tools
     missing = check_tools()
     if missing:
         print(
             json.dumps(
                 {
                     "error": f"Missing required tools: {', '.join(missing)}",
-                    "install": "brew install " + " ".join(missing),
+                    "install": "brew install gitleaks typos-cli lychee markdownlint-cli",
                 }
             )
         )
@@ -299,30 +286,26 @@ def main():
 
     tracked_files = get_tracked_files(repo_path)
 
-    # Run scans
-    secrets = scan_secrets(repo_path)
-    typos = scan_typos(repo_path)
-    link_issues = scan_links(repo_path, tracked_files)
-
     result = {
         "repo_path": str(repo_path),
         "repo_name": repo_path.name,
         "files_checked": len(tracked_files[:300]),
         "basics": check_basics(repo_path),
-        "secrets": secrets,
-        "typos": typos,
+        "secrets": scan_secrets(repo_path),
+        "typos": scan_typos(repo_path),
+        "broken_links": scan_links(repo_path),
+        "markdown_unfixable": fix_markdown(repo_path, tracked_files),
         "hardcoded_paths": scan_hardcoded_paths(repo_path, tracked_files),
         "org_references": scan_org_references(repo_path, tracked_files),
-        "broken_links": link_issues,
     }
 
-    # Summary flags
-    result["has_blockers"] = bool(secrets)
+    result["has_blockers"] = bool(result["secrets"])
     result["needs_review"] = bool(
         result["hardcoded_paths"]
         or result["org_references"]
         or result["broken_links"]
         or result["typos"]
+        or result["markdown_unfixable"]
     )
 
     print(json.dumps(result, indent=2))

@@ -21,16 +21,19 @@ Avoid triggering on generic "clean up my workspace" - be more specific about mar
 ### 1. Discover Files
 
 **Untracked markdown (default):**
+
 ```bash
 uv run ~/.claude/skills/archive-analysis/archive_utils.py analyze --mode=untracked
 ```
 
 **All markdown (comprehensive):**
+
 ```bash
 uv run ~/.claude/skills/archive-analysis/archive_utils.py analyze --mode=explore
 ```
 
 **Specific files:**
+
 ```bash
 uv run ~/.claude/skills/archive-analysis/archive_utils.py analyze FILE1.md FILE2.md
 ```

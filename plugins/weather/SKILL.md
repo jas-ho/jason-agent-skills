@@ -39,12 +39,14 @@ Get hourly weather forecasts to plan outdoor activities (running, cycling, climb
 ## What It Shows
 
 For each daylight hour:
+
 - **Cloud cover** - Visual bar + percentage
 - **Temperature** - Actual temp in Celsius
 - **Wind speed** - km/h
 - **Rain probability** - Percentage
 
 Plus:
+
 - **Current conditions** - Temp, feels-like, clouds, wind, conditions
 - **Best windows** - Consecutive hours with low clouds AND low rain probability
 - **Sunrise/sunset** - Daylight planning
@@ -85,6 +87,7 @@ For Alps/Europe locations, ICON-D2 provides superior accuracy. The skill auto-de
 ## Activity Considerations
 
 Different activities have different weather needs:
+
 - **Running/Hiking**: Cloud cover + temperature
 - **Cycling**: Wind is critical (>25km/h = challenging)
 - **Climbing**: Needs dry conditions, check precipitation history
@@ -92,6 +95,7 @@ Different activities have different weather needs:
 - **Open water**: Consider water temp (not in this API)
 
 This skill focuses on general outdoor windows. For specialized forecasts:
+
 - Alpine: bergfex.at
 - Avalanche: avalanche.report
 - Marine: windy.com marine layer

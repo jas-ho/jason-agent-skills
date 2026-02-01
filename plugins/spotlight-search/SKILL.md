@@ -17,29 +17,34 @@ Fast file discovery using macOS Spotlight's pre-built index. Faster than grep/rg
 ## Core Patterns
 
 ### Simple Search (names + content)
+
 ```bash
 mdfind "quarterly report"
 ```
 
 ### Search by Filename
+
 ```bash
 mdfind -name "quarterly_report"          # Filename contains this string
 mdfind -name ".pdf"                       # All PDFs by extension
 ```
 
 ### Scoped to Directory
+
 ```bash
 mdfind -onlyin ~/Downloads "invoice 2024"
 mdfind -onlyin ~ "project proposal"  # home directory
 ```
 
 ### Content-Specific Search
+
 ```bash
 mdfind 'kMDItemTextContent == "*budget*"'
 mdfind 'kMDItemTextContent CONTAINS[cd] "project status"'  # case-insensitive
 ```
 
 ### By File Type (standalone)
+
 ```bash
 mdfind 'kind:pdf'
 mdfind 'kind:word'                       # Word docs
@@ -48,6 +53,7 @@ mdfind 'kind:spreadsheet'                # Excel/Numbers
 ```
 
 ### File Type + Content (use -interpret)
+
 ```bash
 # The -interpret flag allows combining kind: with text search
 mdfind -interpret 'kind:pdf budget'
@@ -56,6 +62,7 @@ mdfind -onlyin ~/Downloads -interpret 'kind:pdf invoice'
 ```
 
 ### Combined Predicates (full syntax)
+
 ```bash
 # Multiple content terms (AND)
 mdfind 'kMDItemTextContent == "*invoice*" && kMDItemTextContent == "*2024*"'
@@ -72,6 +79,7 @@ mdfind 'kMDItemContentType == "com.adobe.pdf" && kMDItemTextContent == "*contrac
 ```
 
 ### By Date
+
 ```bash
 # Modified today
 mdfind 'kMDItemFSContentChangeDate > $time.today'
@@ -138,21 +146,25 @@ done | sort -r | cut -f2-
 ## Tips
 
 1. **Exclude noise**: Pipe through `grep -v` to filter out unwanted paths
+
    ```bash
    mdfind "query" | grep -v "node_modules\|\.git\|Library/Caches"
    ```
 
 2. **Limit results**: Use `head` for quick exploration
+
    ```bash
    mdfind "query" | head -20
    ```
 
 3. **Check what's indexed**: Some folders may be excluded from Spotlight
+
    ```bash
    # System Preferences > Siri & Spotlight > Spotlight Privacy
    ```
 
 4. **Force reindex** (if results seem stale):
+
    ```bash
    sudo mdutil -E /  # Rebuilds entire index - takes time
    ```
@@ -160,16 +172,19 @@ done | sort -r | cut -f2-
 ## Common Use Cases
 
 ### Find documents with multiple terms
+
 ```bash
 mdfind -onlyin ~ 'kMDItemTextContent == "*invoice*" && kMDItemTextContent == "*2024*"'
 ```
 
 ### Find documents matching any of several terms
+
 ```bash
 mdfind 'kMDItemTextContent == "*resume*" || kMDItemTextContent == "*CV*"'
 ```
 
 ### Find PDFs containing specific text
+
 ```bash
 mdfind -interpret 'kind:pdf quarterly report'
 # OR with full predicate:
@@ -177,6 +192,7 @@ mdfind 'kMDItemContentType == "com.adobe.pdf" && kMDItemTextContent == "*quarter
 ```
 
 ### Find recently modified documents by topic
+
 ```bash
 mdfind -onlyin ~/Documents 'kMDItemFSContentChangeDate > $time.today(-7) && kMDItemTextContent == "*meeting*"'
 ```

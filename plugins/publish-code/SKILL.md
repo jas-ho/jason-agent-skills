@@ -14,6 +14,8 @@ Guide a repository from private to public. Adapts to user intent - from "just ma
 |------|---------|---------|
 | [gitleaks](https://github.com/gitleaks/gitleaks) | Secrets detection (scans git history) | `brew install gitleaks` |
 | [typos](https://github.com/crate-ci/typos) | Spell checking for code | `brew install typos-cli` |
+| [lychee](https://lychee.cli.rs/) | Link checking | `brew install lychee` |
+| [markdownlint](https://github.com/DavidAnson/markdownlint) | Markdown formatting (autofix) | `brew install markdownlint-cli` |
 | [gh](https://cli.github.com/) | GitHub CLI | `brew install gh` |
 
 ## Workflow
@@ -45,6 +47,7 @@ ls pyproject.toml package.json Cargo.toml go.mod 2>/dev/null
 ```
 
 **Parse results into context:**
+
 - `is_dirty`: Has uncommitted changes?
 - `has_remote`: Connected to GitHub?
 - `is_public`: Already visible to world?
@@ -63,11 +66,13 @@ Use AskUserQuestion with context baked into the question:
 > What's your goal?"
 
 Options:
+
 1. **Just make it public** - Minimal: add license, quick sanity check, flip visibility
 2. **Make it usable by others** - Standard: license, README polish, install docs, portability check
 3. **Want community/contributors** - Full: above + CONTRIBUTING.md, issue templates, CI
 
 **Adapt the question:**
+
 - If already public: "Already public. Want to improve discoverability?"
 - If dirty state: "You have uncommitted changes. Commit first, or proceed anyway?"
 - If no remote: "No GitHub remote. Want to create one?"
@@ -79,6 +84,7 @@ Options:
 **1. Add LICENSE if missing**
 
 Ask which license:
+
 - **MIT** - Simple, permissive. Best for utilities/libraries.
 - **Apache-2.0** - Adds patent protection. Better for applications.
 
@@ -89,11 +95,13 @@ gh api /licenses/mit --jq '.body' | sed "s/\[year\]/$(date +%Y)/g" | sed 's/\[fu
 ```
 
 For Apache-2.0:
+
 ```bash
 gh api /licenses/apache-2.0 --jq '.body' > LICENSE
 ```
 
 **Verify the LICENSE file:**
+
 - Check it exists and has content: `wc -l LICENSE` (should be 20+ lines)
 - Check placeholders were substituted: `grep '\[year\]\|\[fullname\]' LICENSE || true` (no output = good)
 - Quick sanity check: `head -3 LICENSE` (should show license name and copyright)
@@ -101,6 +109,7 @@ gh api /licenses/apache-2.0 --jq '.body' > LICENSE
 **2. Quick sanity check**
 
 Read README and any config files. Look for:
+
 - Hardcoded `/Users/jason/` paths (flag for review)
 - Apart Research / apartresearch references (should these be generalized?)
 - API keys or secrets (STOP if found)
@@ -115,6 +124,7 @@ gh repo edit --visibility public --accept-visibility-change-consequences
 ```
 
 **Verify it worked:**
+
 ```bash
 gh repo view --json visibility,url --jq '"Visibility: \(.visibility), URL: \(.url)"'
 ```
@@ -130,12 +140,14 @@ Everything in Minimal, plus:
 **1. README quality check**
 
 Read full README. Verify it has:
+
 - [ ] One-line description at top
 - [ ] Installation instructions (with actual commands)
 - [ ] Usage example (working code or CLI invocation)
 - [ ] License mention
 
 **Also check for implicit dependencies** - list ALL tools needed, including "obvious" ones:
+
 - curl, jq, grep - not installed everywhere
 - Language runtimes (python3, node)
 - Package managers (brew, apt)
@@ -150,26 +162,33 @@ Run the audit script (located alongside this SKILL.md):
 ./audit.py [repo-path]
 ```
 
-The script checks:
+The script:
+
 - **Secrets**: gitleaks - scans git history for leaked credentials
 - **Typos**: typos - spell checking for code and documentation
+- **Broken links**: lychee - fast async link checker
+- **Markdown**: markdownlint --fix - autofixes formatting, reports unfixable
 - **Hardcoded paths**: `/Users/xxx/`, `/home/xxx/`, `C:\Users\xxx\`
 - **Org references**: Apart Research, Notion IDs, etc.
-- **Broken links**: Parallel curl checks on all markdown URLs (redirects, errors)
 
 Review output for:
+
+- `secrets`: STOP and address immediately
 - `hardcoded_paths`: Fix or document
-- `potential_secrets`: STOP and address
-- Missing `.gitignore` patterns
+- `broken_links`: Update or remove
+- `typos`: Review suggestions and fix
+- `markdown_unfixable`: Manual fixes needed
 
 **3. Claude review of key files**
 
 Read these files and flag anything that assumes personal/org context:
+
 - README.md (intro and examples)
 - Config files (config.toml, settings.py, etc.)
 - Example files
 
 Look for:
+
 - Personal research interests (should be examples, not Jason's actual interests)
 - Apart-specific terminology (Sprint, Studio, Fellowship)
 - Hardcoded Notion/Discord/Slack references
@@ -269,6 +288,7 @@ labels: enhancement
 Offer to draft for multiple platforms:
 
 **Hacker News (Show HN):**
+
 ```
 Show HN: [Name] – [description]
 
@@ -280,6 +300,7 @@ Looking for feedback on [specific aspect].
 ```
 
 **Reddit:**
+
 ```
 [Name] - [description] [open source]
 
@@ -319,12 +340,14 @@ When reviewing, specifically check for:
 ## Quick Reference
 
 **License cheat sheet:**
+
 | License | Best for |
 |---------|----------|
 | MIT | Libraries, utilities, quick tools |
 | Apache-2.0 | Applications, anything with patent concerns |
 
 **Announcement priority (for dev tools):**
+
 1. Twitter/X (quick, low friction)
 2. Hacker News (high impact if it lands)
 3. Reddit (targeted subreddits)

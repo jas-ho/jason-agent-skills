@@ -27,6 +27,7 @@ git add <files-to-commit>
 ```
 
 The script validates **only staged changes**. If you run it without staging, you'll get:
+
 ```
 Exit code 1: No staged changes to commit
 ```
@@ -38,6 +39,7 @@ Exit code 1: No staged changes to commit
 ```
 
 The script will:
+
 - Auto-fix all fixable issues (formatting, auto-fixable lint errors)
 - Re-stage any files that were modified during auto-fixing
 - Run validators and show their full output
@@ -51,6 +53,7 @@ The script will:
 Read the validator output directly and **fix any problems found**:
 
 **Clean output** - proceed with commit:
+
 ```
 === Validating: script.py ===
 --- ruff check (via project env) ---
@@ -61,6 +64,7 @@ Success: no issues found in 1 source file
 ```
 
 **Errors found** - fix them before committing:
+
 ```
 === Validating: script.py ===
 --- ruff check ---
@@ -69,14 +73,17 @@ script.py:10:5: F821 Undefined name `foo`
 --- mypy ---
 script.py:10: error: Name 'foo' is not defined
 ```
+
 → Undefined variable on line 10 - **edit the file to fix it**, then re-run validation
 
 **Important**:
+
 - **Always fix errors** - Don't proceed with broken code unless you have a very good reason
 - **Explain any exceptions** - If you skip an error, tell the user why
 - Use Edit tool to fix issues, then re-stage and re-run safe-commit
 
 **Special cases**:
+
 - **Local files detected** → Hard block, must unstage them
 - **Sensitive files detected** → Ask user to confirm before committing
 - **Auto-fixed files** → Review `git diff --cached` to see what changed
@@ -153,6 +160,7 @@ git commit -m "second commit"
 ```
 
 To unstage files already staged:
+
 ```bash
 git restore --staged <unwanted-files>
 ```

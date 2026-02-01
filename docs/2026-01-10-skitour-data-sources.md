@@ -17,6 +17,7 @@ curl -s "https://static.lawinen-warnung.eu/bulletins/latest/AT-03.json"
 - **jq pattern**: `first(.[] | select(.regions | index("AT-03-04")))`
 
 **Failed alternatives**:
+
 - `avalanche.report/api` - Returns HTML (JavaScript SPA)
 - `lawinen.report` - Only covers Tirol/Südtirol/Trentino
 
