@@ -1,6 +1,6 @@
 # jason-agent-skills
 
-Claude Code skills for weather, ski touring, code commits, and file management.
+Miscellaneous LLM agent skills.
 
 ## Installation
 
