@@ -8,6 +8,14 @@ allowed-tools: [Bash, Read, Write, Edit, Grep, Glob, AskUserQuestion]
 
 Guide a repository from private to public. Adapts to user intent - from "just make it public" to "want contributors."
 
+## Requirements
+
+| Tool | Purpose | Install |
+|------|---------|---------|
+| [gitleaks](https://github.com/gitleaks/gitleaks) | Secrets detection (scans git history) | `brew install gitleaks` |
+| [typos](https://github.com/crate-ci/typos) | Spell checking for code | `brew install typos-cli` |
+| [gh](https://cli.github.com/) | GitHub CLI | `brew install gh` |
+
 ## Workflow
 
 ```
@@ -143,11 +151,11 @@ Run the audit script (located alongside this SKILL.md):
 ```
 
 The script checks:
-- **Secrets**: gitleaks (if installed) or fallback patterns - scans git history
+- **Secrets**: gitleaks - scans git history for leaked credentials
+- **Typos**: typos - spell checking for code and documentation
 - **Hardcoded paths**: `/Users/xxx/`, `/home/xxx/`, `C:\Users\xxx\`
 - **Org references**: Apart Research, Notion IDs, etc.
 - **Broken links**: Parallel curl checks on all markdown URLs (redirects, errors)
-- **Transcription typos**: Split tool names ("shell check" → "shellcheck")
 
 Review output for:
 - `hardcoded_paths`: Fix or document
