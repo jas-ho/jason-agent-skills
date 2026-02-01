@@ -111,10 +111,10 @@ gh api /licenses/apache-2.0 --jq '.body' > LICENSE
 
 Read README and any config files. Look for:
 
-- Hardcoded `/Users/jason/` paths (flag for review)
-- Apart Research / apartresearch references (should these be generalized?)
+- Hardcoded user paths (`/Users/xxx/`, `/home/xxx/`)
+- Organization-specific references that should be generalized
 - API keys or secrets (STOP if found)
-- Notion database IDs, Discord channel IDs (org-specific?)
+- Hardcoded service IDs (Notion, Discord, Slack, etc.)
 
 This is Claude reading files, not mechanical grep. Use judgment.
 
@@ -170,7 +170,6 @@ The script uses external tools (exit codes: 0=clean, 1+=issues found - this is e
 - **Broken links**: lychee - fast async link checker
 - **Markdown**: markdownlint --fix - autofixes formatting, reports unfixable
 - **Hardcoded paths**: `/Users/xxx/`, `/home/xxx/`, `C:\Users\xxx\`
-- **Org references**: Apart Research, Notion IDs, etc.
 
 **Limits**: Scans first 300 tracked files, skips files >200KB. Large repos may have unscanned files.
 
@@ -184,8 +183,7 @@ The script uses external tools (exit codes: 0=clean, 1+=issues found - this is e
   "typos": [...],
   "broken_links": [...],
   "markdown_unfixable": [...],
-  "hardcoded_paths": [...],
-  "org_references": [...]
+  "hardcoded_paths": [...]
 }
 ```
 
@@ -207,10 +205,10 @@ Read these files and flag anything that assumes personal/org context:
 
 Look for:
 
-- Personal research interests (should be examples, not Jason's actual interests)
-- Apart-specific terminology (Sprint, Studio, Fellowship)
-- Hardcoded Notion/Discord/Slack references
-- Vienna/Austrian-specific content (flag, might be intentional like skitour)
+- Personal examples that should be generic (names, interests, projects)
+- Organization-specific terminology or internal jargon
+- Hardcoded service IDs (Notion, Discord, Slack, etc.)
+- Location-specific content (flag - might be intentional)
 
 **4. GitHub topics**
 
@@ -332,20 +330,6 @@ GitHub: [url]
 Present drafts for user approval. Never post without explicit confirmation.
 
 ---
-
-## Jason-Specific Patterns
-
-When reviewing, specifically check for:
-
-| Pattern | What to flag |
-|---------|--------------|
-| `/Users/jason/` | Hardcoded path - make relative |
-| `Apart Research`, `apartresearch` | Org reference - generalize? |
-| `Sprint`, `Studio`, `Fellowship` | Apart terminology |
-| Notion DB IDs (`xxxxxxxx-xxxx-...`) | Org-specific config |
-| Discord channel names | Should be configurable |
-| Research interest lists | Should be examples, not personal |
-| `@apartresearch.com` emails | Remove or generalize |
 
 ## Important Rules
 

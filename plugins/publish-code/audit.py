@@ -222,38 +222,6 @@ def scan_hardcoded_paths(repo_path: Path, tracked_files: list[str]) -> list[dict
     return issues
 
 
-def scan_org_references(repo_path: Path, tracked_files: list[str]) -> list[dict]:
-    """Find org-specific references (Apart Research, Notion IDs, etc.)."""
-    issues = []
-    patterns = [
-        (r"Apart\s*Research", "Apart Research reference"),
-        (r"apartresearch", "apartresearch reference"),
-        (r"@apartresearch\.com", "Apart email"),
-        (r"notion\.so/[a-f0-9-]{32,}", "Notion page/database ID"),
-    ]
-    skip_ext = {".png", ".jpg", ".gif", ".pdf", ".zip", ".gz", ".tar", ".lock"}
-    skip_files = {"CHANGELOG.md", "LICENSE", ".git"}
-
-    for file_path in tracked_files[:200]:
-        if any(skip in file_path for skip in skip_files):
-            continue
-        full_path = repo_path / file_path
-        if not full_path.exists() or not full_path.is_file():
-            continue
-        if full_path.suffix.lower() in skip_ext or full_path.stat().st_size > 100000:
-            continue
-
-        try:
-            content = full_path.read_text(errors="ignore")
-            for pattern, desc in patterns:
-                if re.search(pattern, content, re.IGNORECASE):
-                    issues.append({"file": file_path, "type": desc})
-                    break
-        except Exception:
-            continue
-    return issues
-
-
 def check_basics(repo_path: Path) -> dict:
     """Check for basic required files."""
     return {
@@ -301,13 +269,11 @@ def main():
         "broken_links": scan_links(repo_path),
         "markdown_unfixable": fix_markdown(repo_path, tracked_files),
         "hardcoded_paths": scan_hardcoded_paths(repo_path, tracked_files),
-        "org_references": scan_org_references(repo_path, tracked_files),
     }
 
     result["has_blockers"] = bool(result["secrets"])
     result["needs_review"] = bool(
         result["hardcoded_paths"]
-        or result["org_references"]
         or result["broken_links"]
         or result["typos"]
         or result["markdown_unfixable"]
