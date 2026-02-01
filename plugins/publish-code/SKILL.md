@@ -178,6 +178,15 @@ The script uses external tools (exit codes: 0=clean, 1+=issues found - this is e
 
 ```json
 {
+  "repo_path": "/path/to/repo",
+  "repo_name": "repo",
+  "files_checked": 42,
+  "basics": {
+    "has_license": true,
+    "has_readme": true,
+    "has_contributing": false,
+    "has_gitignore": true
+  },
   "has_blockers": true,       // secrets found - STOP
   "needs_review": true,       // non-blocking issues found
   "secrets": [...],           // HIGH severity
@@ -234,7 +243,7 @@ Look for:
 - Hardcoded service IDs (Notion, Discord, Slack, etc.)
 - Location-specific content (flag - might be intentional)
 
-**4. GitHub topics**
+**6. GitHub topics**
 
 If no topics set, suggest relevant ones:
 
@@ -242,7 +251,7 @@ If no topics set, suggest relevant ones:
 gh repo edit --add-topic python --add-topic cli-tool
 ```
 
-**5. Make public + optional announcement**
+**7. Make public + optional announcement**
 
 Make public, then offer to draft a tweet:
 

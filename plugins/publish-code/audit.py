@@ -290,7 +290,7 @@ def main():
             json.dumps(
                 {
                     "error": f"Missing required tools: {', '.join(missing)}",
-                    "install": "brew install gitleaks typos-cli lychee markdownlint-cli",
+                    "install": "brew install gitleaks typos-cli lychee markdownlint-cli gh",
                 }
             )
         )
