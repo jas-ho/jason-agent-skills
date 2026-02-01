@@ -83,8 +83,12 @@ gh api /licenses/mit --jq '.body' | sed "s/\[year\]/$(date +%Y)/g" | sed 's/\[fu
 For Apache-2.0:
 ```bash
 gh api /licenses/apache-2.0 --jq '.body' > LICENSE
-# Apache doesn't need year/name substitution in the license file itself
 ```
+
+**Verify the LICENSE file:**
+- Check it exists and has content: `wc -l LICENSE` (should be 20+ lines)
+- Check placeholders were substituted: `grep -c '\[year\]\|\[fullname\]' LICENSE` (should be 0)
+- Quick sanity check: `head -3 LICENSE` (should show license name and copyright)
 
 **2. Quick sanity check**
 
@@ -100,10 +104,14 @@ This is Claude reading files, not mechanical grep. Use judgment.
 
 ```bash
 gh repo edit --visibility public --accept-visibility-change-consequences
-gh repo view --json visibility,url
 ```
 
-Done. No announcements needed for minimal path.
+**Verify it worked:**
+```bash
+gh repo view --json visibility,url --jq '"Visibility: \(.visibility), URL: \(.url)"'
+```
+
+Confirm output shows `PUBLIC` before proceeding. Done for minimal path.
 
 ---
 
