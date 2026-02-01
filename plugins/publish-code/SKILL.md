@@ -88,22 +88,23 @@ Ask which license:
 - **MIT** - Simple, permissive. Best for utilities/libraries.
 - **Apache-2.0** - Adds patent protection. Better for applications.
 
-Fetch from GitHub API and substitute placeholders:
+Fetch from GitHub API, substitute placeholders using git config:
 
 ```bash
-gh api /licenses/mit --jq '.body' | sed "s/\[year\]/$(date +%Y)/g" | sed 's/\[fullname\]/Jason Hoelscher-Obermaier/g' > LICENSE
-```
+# Get author name from git config
+AUTHOR=$(git config user.name)
 
-For Apache-2.0:
+# MIT license
+gh api /licenses/mit --jq '.body' | sed "s/\[year\]/$(date +%Y)/g" | sed "s/\[fullname\]/$AUTHOR/g" > LICENSE
 
-```bash
+# Apache-2.0 (no placeholders in template)
 gh api /licenses/apache-2.0 --jq '.body' > LICENSE
 ```
 
 **Verify the LICENSE file:**
 
 - Check it exists and has content: `wc -l LICENSE` (should be 20+ lines)
-- Check placeholders were substituted: `grep '\[year\]\|\[fullname\]' LICENSE || true` (no output = good)
+- For MIT: `grep '\[year\]\|\[fullname\]' LICENSE || true` (no output = placeholders substituted)
 - Quick sanity check: `head -3 LICENSE` (should show license name and copyright)
 
 **2. Quick sanity check**
@@ -156,13 +157,13 @@ If missing sections, offer to add them. Keep it concise.
 
 **2. Portability audit**
 
-Run the audit script (located alongside this SKILL.md):
+Run the audit script (requires uv, located alongside this SKILL.md):
 
 ```bash
 ./audit.py [repo-path]
 ```
 
-The script:
+The script uses external tools (exit codes: 0=clean, 1+=issues found - this is expected):
 
 - **Secrets**: gitleaks - scans git history for leaked credentials
 - **Typos**: typos - spell checking for code and documentation
@@ -171,9 +172,26 @@ The script:
 - **Hardcoded paths**: `/Users/xxx/`, `/home/xxx/`, `C:\Users\xxx\`
 - **Org references**: Apart Research, Notion IDs, etc.
 
+**Limits**: Scans first 300 tracked files, skips files >200KB. Large repos may have unscanned files.
+
+**JSON output schema:**
+
+```json
+{
+  "has_blockers": true,       // secrets found - STOP
+  "needs_review": true,       // non-blocking issues found
+  "secrets": [...],           // HIGH severity
+  "typos": [...],
+  "broken_links": [...],
+  "markdown_unfixable": [...],
+  "hardcoded_paths": [...],
+  "org_references": [...]
+}
+```
+
 Review output for:
 
-- `secrets`: STOP and address immediately
+- `has_blockers: true`: STOP - secrets found, address immediately
 - `hardcoded_paths`: Fix or document
 - `broken_links`: Update or remove
 - `typos`: Review suggestions and fix

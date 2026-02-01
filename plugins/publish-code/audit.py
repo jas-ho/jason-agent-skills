@@ -8,8 +8,13 @@ Mechanical audit for publish-code skill.
 Uses external tools for quality checks - no DIY patterns.
 Returns JSON for Claude to review and act on.
 
-Required: gitleaks, typos, lychee, markdownlint
-Install: brew install gitleaks typos-cli lychee markdownlint-cli
+Required: gitleaks, typos, lychee, markdownlint, gh
+Install: brew install gitleaks typos-cli lychee markdownlint-cli gh
+
+Config: .markdownlint.json in skill dir provides sensible defaults.
+Uses project's config if present, otherwise falls back to skill config.
+
+Limits: Scans first 300 tracked files, skips files >200KB.
 """
 
 import json
@@ -19,7 +24,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-REQUIRED_TOOLS = ["gitleaks", "typos", "lychee", "markdownlint"]
+REQUIRED_TOOLS = ["gitleaks", "typos", "lychee", "markdownlint", "gh"]
 
 
 def check_tools() -> list[str]:
