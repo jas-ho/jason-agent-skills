@@ -29,6 +29,11 @@
       "name": "skitour",
       "source": "skitour",
       "description": "Ski touring conditions for Austrian Alps - avalanche danger, snow depth, and weather."
+    },
+    {
+      "name": "flights",
+      "source": "flights",
+      "description": "Real flight prices and schedules via flight-goat CLI (Google Flights) and Ryanair APIs. No API keys."
     }
   ]
 }
