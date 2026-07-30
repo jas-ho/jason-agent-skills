@@ -2,7 +2,6 @@
 name: flights
 description: Check real flight prices and schedules (Google Flights data via flight-goat CLI, plus Ryanair's exact APIs). Use for fare lookups, cheapest-date scans, and verifying route day-of-week patterns before booking.
 allowed-tools: [Bash, Read]
-user-invocable: true
 ---
 
 # Flights — prices and schedules

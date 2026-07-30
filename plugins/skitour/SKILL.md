@@ -2,7 +2,6 @@
 name: skitour
 description: Ski touring conditions for Austrian Alps - avalanche danger, snow depth, and weather forecast combined.
 allowed-tools: [Bash, Read]
-user-invocable: true
 ---
 
 # Ski Touring Conditions

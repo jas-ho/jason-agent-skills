@@ -2,7 +2,6 @@
 name: spotlight-search
 description: Search local files using macOS Spotlight (mdfind). Fast indexed search across PDFs, Office docs, and plain text. Use when user asks to find files by content ("search my documents for X"), locate documents on topics ("find my resume", "tax forms"), or needs to discover files without knowing exact path. Triggers on phrases like "search Downloads for", "find PDFs about", "locate documents containing".
 allowed-tools: [Bash, Read]
-user-invocable: true
 ---
 
 # Spotlight Search (mdfind)

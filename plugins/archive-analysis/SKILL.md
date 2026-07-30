@@ -1,7 +1,7 @@
 ---
 name: archive-analysis
 description: Clean up workspace by archiving one-time analysis files. Auto-discovers untracked markdown files, extracts insights to task tracking, and moves files to archive/ with chronological naming. Use when user wants to clean up workspace or archive temporary documentation.
-allowed_tools: [Bash, Read, Write, Edit, Grep, Glob]
+allowed-tools: [Bash, Read, Write, Edit, Grep, Glob]
 ---
 
 # Archive Analysis Skill

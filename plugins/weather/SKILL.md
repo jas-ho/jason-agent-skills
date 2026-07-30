@@ -2,7 +2,6 @@
 name: weather
 description: Show weather forecast with cloud cover, wind, and precipitation for planning outdoor activities. Auto-selects best model (ICON-D2 for Alps/Europe, global elsewhere).
 allowed-tools: [Bash, Read]
-user-invocable: true
 ---
 
 # Weather Forecast
