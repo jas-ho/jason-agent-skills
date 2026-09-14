@@ -1,42 +1,17 @@
-# Agent Instructions
+# Shared skill repository
 
-This project uses **bd** (beads) for issue tracking. Run `bd onboard` to get started.
+Canonical authored skills live in `plugins/<skill>/`. Edit the source package, not generated harness entrypoints or vendor caches. Read the shared `skill-builder` guidance when changing a workflow across Claude Code, Codex and OMP.
 
-## Quick Reference
+## Task routing
 
-```bash
-bd ready              # Find available work
-bd show <id>          # View issue details
-bd update <id> --status in_progress  # Claim work
-bd close <id>         # Complete work
-bd sync               # Sync with git
-```
+Persistent tasks and follow-ups belong in Linear's **Jason workspace and Jason team**. Resolve current project and issue IDs; reuse an existing issue rather than creating a duplicate. If Linear is unavailable, report it without substituting another tracker. Do not use Beads for this repository.
 
-## Landing the Plane (Session Completion)
+Daily Obsidian plans remain the working surface; the existing backlog and GoalsWon retain legacy items and daily accountability. Do not bulk-migrate legacy items or duplicate Linear tasks. Broader Apart organization tracking stays in Notion.
 
-**When ending a work session**, you MUST complete ALL steps below. Work is NOT complete until `git push` succeeds.
+## Maintenance
 
-**MANDATORY WORKFLOW:**
-
-1. **File issues for remaining work** - Create issues for anything that needs follow-up
-2. **Run quality gates** (if code changed) - Tests, linters, builds
-3. **Update issue status** - Close finished work, update in-progress items
-4. **PUSH TO REMOTE** - This is MANDATORY:
-
-   ```bash
-   git pull --rebase
-   bd sync
-   git push
-   git status  # MUST show "up to date with origin"
-   ```
-
-5. **Clean up** - Clear stashes, prune remote branches
-6. **Verify** - All changes committed AND pushed
-7. **Hand off** - Provide context for next session
-
-**CRITICAL RULES:**
-
-- Work is NOT complete until `git push` succeeds
-- NEVER stop before pushing - that leaves work stranded locally
-- NEVER say "ready to push when you are" - YOU must push
-- If push fails, resolve and retry until it succeeds
+- `~/.claude/agent-config.toml` owns selection, host scope and generated discovery paths. Preserve disabled selections and edit their canonical configuration, not generated links.
+- Keep changes scoped and preserve other sessions' work. Run checks appropriate to the changed behavior and review the exact staged diff; never bypass commit hooks.
+- After settings, hooks or skill enablement changes, run `agent-config audit --runtime <affected-project-dir>` and `agent-config check`. Report unavailable runtime checks explicitly.
+- Commit and push completed repository changes through the existing remote, handling upstream changes without discarding unrelated work. Report the commit, checks and any unresolved delivery issue.
+- Deploy shared sources before configuration that points to them. The configuration maintenance guide lives in `~/.claude/README.md`. Vault notes reach cairn through Obsidian Sync only.
