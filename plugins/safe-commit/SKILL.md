@@ -28,14 +28,16 @@ git add <files-to-commit>
 
 The script validates **only staged changes**. If you run it without staging, you'll get:
 
-```
+```text
 Exit code 1: No staged changes to commit
 ```
 
 ### 2. Run Validation
 
+Set `safe_commit_skill_dir` to the absolute directory containing this loaded `SKILL.md`, using the path supplied by native skill discovery. Keep the working directory set to the repository being validated.
+
 ```bash
-~/.claude/skills/safe-commit/safe_commit.sh
+"$safe_commit_skill_dir/safe_commit.sh"
 ```
 
 The script will:
@@ -54,7 +56,7 @@ Read the validator output directly and **fix any problems found**:
 
 **Clean output** - proceed with commit:
 
-```
+```text
 === Validating: script.py ===
 --- ruff check (via project env) ---
 All checks passed!
@@ -65,7 +67,7 @@ Success: no issues found in 1 source file
 
 **Errors found** - fix them before committing:
 
-```
+```text
 === Validating: script.py ===
 --- ruff check ---
 script.py:10:5: F821 Undefined name `foo`
@@ -127,7 +129,7 @@ The script uses language-specific tools for formatting, linting, and validation:
 
 **Hard blocks (exits with error):**
 
-- Local files (*.local.*)
+- Local files (_.local._)
 - No staged changes
 - Not in a git repository
 
@@ -150,12 +152,12 @@ If changes are unrelated, stage them separately:
 ```bash
 # First commit
 git add <first-group-of-files>
-~/.claude/skills/safe-commit/safe_commit.sh
+"$safe_commit_skill_dir/safe_commit.sh"
 git commit -m "first commit"
 
 # Second commit
 git add <second-group-of-files>
-~/.claude/skills/safe-commit/safe_commit.sh
+"$safe_commit_skill_dir/safe_commit.sh"
 git commit -m "second commit"
 ```
 
@@ -169,7 +171,7 @@ git restore --staged <unwanted-files>
 
 - **Fix errors before committing** - Don't proceed with broken code
 - **Review validator output** - You interpret what tools report, but act on errors
-- **Never commit .local.* files** - Hard blocked by script
+- _*Never commit .local.* files_* - Hard blocked by script
 - **Always read the diff** - Understand what's changing
 - **Check auto-fixes** - Review what was automatically fixed
 - **Think about coherence** - Should changes be in separate commits?

@@ -3,6 +3,8 @@ name: sync-claude-config
 description: Check for Claude config updates, commit changes semantically, and push to remote
 ---
 
+# Sync shared agent configuration
+
 ## Harness and dependencies
 
 Use the current harness's native file, shell, question and worker tools. CC calls its question tool AskUserQuestion; OMP uses ask; Codex uses the question interface actually exposed in the session, with a plain question when unavailable. Tool names in examples describe operations, not a requirement to nest Claude Code. Incoming command arguments are literal user text, never shell code. A skill invocation may supply the same text directly. Check each required CLI/service before its step; keep the workflow available and report missing dependencies. Preserve explicitly optional signal behavior below.
@@ -61,17 +63,19 @@ If this outputs nothing, the changes are timestamp-only - skip committing this f
 
 ### Reconcile derived and per-host config (always, before committing)
 
-After all CLAUDE.md edits are final, run the reconciler. It regenerates `~/.codex/AGENTS.md` from the `[codex.agents_md]` section list in `~/.claude/agent-config.toml`, reconciles external skill/command links for Claude and Codex, installs the repo's git hooks (pre-commit: gitleaks + no outside-repo symlinks), exports the live settings.json to the tracked `settings.<kernel>.json` snapshot, and reports settings parity drift against the other host:
+After all CLAUDE.md edits are final, run the reconciler. It regenerates `~/.codex/AGENTS.md` from the `[codex.agents_md]` section list in `~/.claude/agent-config.toml`, reconciles the shared workflow catalog and generated skill/command entrypoints for Claude Code, Codex and OMP, installs the repo's git hooks (pre-commit: gitleaks + no outside-repo symlinks), exports the live settings.json to the tracked `settings.<kernel>.json` snapshot, and reports settings parity drift against the other host:
 
 ```bash
 ~/.claude/user-scripts/agent-config apply
+~/.claude/user-scripts/agent-config check
+~/.claude/user-scripts/agent-config audit --runtime "$PWD"
 ```
 
 - Nonzero exit with `ERROR`/`ABORT` (renamed CLAUDE.md heading not in the section list, AGENTS.md over budget, missing/ambiguous root, invalid skill metadata, FOREIGN real file at a destination, credential-looking value in settings): STOP and report the exact line. Renaming a `##` heading in CLAUDE.md means editing `[codex.agents_md].sections` in the same commit.
 - `SETTINGS`/`KEY` drift lines mean the two hosts' settings differ on a key not listed in `host_only`: tell the user which key; fixing it means editing the live settings.json on the right host (never the snapshot) or adding the key to `host_only` with a reason. Hooks are compared per event with home paths normalized; a hook that exists on one host only goes on the other host too (same command with that host's home; the comparison ignores entries matching `host_only_hooks`, currently only the orca desktop hook).
 - `STALE`/`UNDECLARED` lines are symlinks the manifest does not know; ask before removing anything.
-- Adding an external skill or command = one entry in `agent-config.toml` plus, for names under `skills/` or `commands/` not covered by a `.gitignore` pattern, an ignore line. Never commit a symlink that points outside the repo (the pre-commit hook rejects it).
-- Runs automatically after every nightly `auto-sync` pull on both hosts (`#post-pull:claude-config` in `repos.conf`); this manual run only closes the gap for edits made in this session. Commits go through the pre-commit hook; never use `--no-verify`.
+- Declare shared workflows under `[workflows.<id>]` in `agent-config.toml`, with canonical source, target/host scope, commands and dependencies. Add ignore rules for generated paths that Git does not already ignore; never commit a link outside the repository. Run `agent-config report --json` before changing selection. Its `selector_requirements` describe the native Claude, Codex and OMP prerequisites; update only those fields through supported configuration while preserving unrelated state and existing disables. Apply checks these selectors and does not write them for you. Codex disables must cover the resolved source path. Cairn receives OMP configuration and skills now, while OMP installation remains deferred.
+- Treat a shared-source pull as a live deployment. Add new shared paths without removing the old ones, deploy the sources, then deploy the manifest; retire old paths only after every applicable host has reconciled. Reconciliation must run after the relevant repository pulls complete successfully. A first cutover needs exact legacy-path adoption as well as selector setup; never remove a rollout hold until its preflight and apply/check pass. Commits go through the pre-commit hook; never use `--no-verify`.
 
 ## 4. Commit Changes in Logical Groups
 

@@ -17,23 +17,25 @@ Get hourly weather forecasts to plan outdoor activities (running, cycling, climb
 
 ## Quick Usage
 
+Set `weather_skill_dir` to the absolute directory containing this loaded `SKILL.md`, using the path supplied by native skill discovery. The bundled script lives beside it.
+
 ```bash
-~/.claude/skills/weather/weather.sh                    # Vienna (default)
-~/.claude/skills/weather/weather.sh -l Innsbruck       # Any location by name
-~/.claude/skills/weather/weather.sh -l "Chamonix, FR"  # Include country for accuracy
+"$weather_skill_dir/weather.sh"                    # Vienna (default)
+"$weather_skill_dir/weather.sh" -l Innsbruck       # Any location by name
+"$weather_skill_dir/weather.sh" -l "Chamonix, FR"  # Include country for accuracy
 ```
 
 ## Options
 
-| Flag | Description | Default |
-|------|-------------|---------|
-| `-l, --location NAME` | Search location by name | Vienna |
-| `--lat N` | Override latitude | 48.18601 |
-| `--lon N` | Override longitude | 16.32105 |
-| `--days N` | Forecast days (max 2 for ICON-D2) | 2 |
-| `--threshold N` | Cloud % for "good" windows | 30 |
-| `--model MODEL` | Force model: auto, icon_d2, best_match | auto |
-| `--raw` | Output raw JSON | - |
+| Flag                  | Description                            | Default  |
+| --------------------- | -------------------------------------- | -------- |
+| `-l, --location NAME` | Search location by name                | Vienna   |
+| `--lat N`             | Override latitude                      | 48.18601 |
+| `--lon N`             | Override longitude                     | 16.32105 |
+| `--days N`            | Forecast days (max 2 for ICON-D2)      | 2        |
+| `--threshold N`       | Cloud % for "good" windows             | 30       |
+| `--model MODEL`       | Force model: auto, icon_d2, best_match | auto     |
+| `--raw`               | Output raw JSON                        | -        |
 
 ## What It Shows
 
@@ -52,7 +54,7 @@ Plus:
 
 ## Output Example
 
-```
+```text
 Weather for Vienna (48.19°N, 16.32°E) - ICON-D2
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -76,10 +78,10 @@ Best outdoor windows:
 
 The skill auto-selects the best weather model:
 
-| Model | Resolution | Region | Forecast |
-|-------|------------|--------|----------|
-| ICON-D2 | 2.2km | Central Europe/Alps | 48 hours |
-| Best Match | varies | Global | 7+ days |
+| Model      | Resolution | Region              | Forecast |
+| ---------- | ---------- | ------------------- | -------- |
+| ICON-D2    | 2.2km      | Central Europe/Alps | 48 hours |
+| Best Match | varies     | Global              | 7+ days  |
 
 For Alps/Europe locations, ICON-D2 provides superior accuracy. The skill auto-detects location and switches appropriately.
 
