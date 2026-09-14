@@ -3,15 +3,17 @@ name: coach
 description: "Daily/weekly planning and accountability. Helps prioritize, track progress, stay motivated, and make progress on what matters."
 ---
 
+# Coach
+
 ## Linear routing
 
-Use the **Jason workspace and Jason team** (confirmed 2026-09-12). Research Division work remains the category routed to Linear; personal/life items remain in the existing backlog. Discover current issue identifiers and status IDs from the Jason team; do not assume an RD key or authorize another workspace.
+All persistent tasks and follow-ups go to the **Jason workspace and Jason team** in Linear (routing updated 2026-09-14), including career, job search, admin, personal/life and side projects. Discover current project, issue and status IDs; do not assume an RD key or authorize another workspace. Broader Apart organization tracking stays in Notion.
+
+The daily note's `## Plan` remains the working surface; link tracked tasks to their Linear issues. `backlog.md` and GoalsWon retain legacy items, not new persistent tracking. GoalsWon daily accountability submissions remain supported below. Before creating an issue, check for an existing match; never maintain a duplicate task in the legacy backlog. No automatic bulk migration: move an individual legacy item only with Jason's agreement, verify the Linear issue exists, then remove its backlog entry. If Linear is unavailable, report the task as untracked; do not substitute another tracker or discard its source note.
 
 ## Harness and dependencies
 
 Use the current harness's native file, shell, question and worker tools. CC calls its question tool AskUserQuestion; OMP uses ask; Codex uses the question interface actually exposed in the session, with a plain question when unavailable. Tool names in examples describe operations, not a requirement to nest Claude Code. Incoming command arguments are literal user text, never shell code. A skill invocation may supply the same text directly. Check each required CLI/service before its step; keep the workflow available and report missing dependencies. Preserve explicitly optional signal behavior below.
-
-# Coach
 
 ## Essence (Re-read when returning to coaching mode)
 
@@ -48,9 +50,9 @@ First read today's daily note (step 2) to check whether `## Prep` exists. If it 
     `
 Surface Simon's messages prominently, before planning. Flag yesterday's pending goals for carry-forward. Skip silently on error.
 
-1. **Task surfaces** (two, split by category):
-   - **Linear (RD-work priority surface, source of truth)**: Read the Jason team in the Jason workspace via the Linear MCP (discover the native Linear service tools: `list_issues` team Jason **assignee = me**, `list_issue_statuses`). Filter to Jason's own issues — the board holds other members' work as the division grows; never reprioritize or close someone else's issue without an explicit instruction. Actionable set = **In Progress** + **Todo** + high-priority **Backlog** issues, ordered by `priority` (Urgent > High > Medium > Low). This is where RD _work_ priorities live; you read, create, and reprioritize here (see steps 7-8). If the MCP is unavailable, note it and read `backlog.md` legacy work items as a read-only fallback — do NOT create new RD-work tracking in `backlog.md` (Linear stays the source of truth; flag that the RD picture may be incomplete).
-   - **Backlog** (`~/Projects/ops/dailies/backlog.md`): **personal/life/compounding + non-RD admin** (plus legacy RD-work items not yet drained to Linear). Three tiers: Active (≤15 items), Backburner (blocked/deferred), Someday (aspirational). Active has thematic clusters.
+1. **Task sources**:
+   - **Linear (source of truth)**: Read Jason's issues in the Jason workspace/team via the available Linear tools (`list_issues`, `list_issue_statuses`). Include Jason's assigned issues and confirmed personal unassigned items; never reprioritize or close someone else's issue without explicit instruction. Actionable set = **In Progress** + **Todo** + high-priority **Backlog**, ordered by `priority` (Urgent > High > Medium > Low). If Linear is unavailable, report the incomplete task picture; legacy notes are context, not a substitute tracker.
+   - **Legacy backlog** (`~/Projects/ops/dailies/backlog.md`): Existing items only, across categories. Three tiers: Active (≤15 items), Backburner (blocked/deferred), Someday (aspirational). Surface relevant items without automatically migrating them or adding new persistent tasks here.
 
 3b. **Anchors** (Phase 1, manual reference): Read `~/Projects/ops/dailies/anchors.md`. Active anchors are sustained-effort strategic items the system protects from crowd-out (distinct from operational backlog items). Each has an observable next-state by Sunday. During Plan refinement (step 7), surface 🎯 banners atop Plan for each active anchor and ensure each is covered today via an existing task, a fresh smallest-move, or an explicit "held / blocked-on-other" note. Daily smallest moves live in the daily note, NOT in anchors.md. See [[design-strategic-anchors]] for full conventions.
 
@@ -74,12 +76,12 @@ The compounding categories — publish, outreach, training, relationships — ar
 
 New shape: rhythms surface as **daily questions** in the morning Plan as visible checkbox items, even when the answer is "skip today." Prompts are open-ended:
 
-- 🌱 **What could you publish today?** (default candidates from backlog)
-- 📈 **Who could you reach out to today?** (default candidates from backlog)
+- 🌱 **What could you publish today?** (candidates from Linear and legacy backlog)
+- 📈 **Who could you reach out to today?** (candidates from Linear and legacy backlog)
 - 👟 **Which training modality today?** (week's missing modalities from anchor banner)
 - ❤️ When relevant: **Any non-routine relationship check-in fits today?**
 
-**Accountability counts individual acts, not blocks.** 5 individual outreach messages spread across week beats one 5-contact batch. Backlog still holds the specific candidates as standalone items (MIX post, EU Expert Forum batches, Anderljung email) — the compounder prompts ask Jason to _pick from_ those candidates, _invent_ a small move, or _intentionally skip_ with a one-word reason.
+**Accountability counts individual acts, not blocks.** 5 individual outreach messages spread across week beats one 5-contact batch. Specific candidates come from Linear and existing legacy items; compounder prompts ask Jason to _pick from_ those candidates, _invent_ a small move, or _intentionally skip_ with a one-word reason. New persistent follow-ups go to Linear; daily rhythm prompts stay in Plan.
 
 Mode-shape:
 
@@ -87,7 +89,7 @@ Mode-shape:
 - **Off-work day**: surface 👟 + ❤️. Drop 🌱/📈 unless Jason proactively raises them.
 - **Day off**: skip entirely unless asked.
 
-When Jason answers a prompt with a specific item from backlog, route as a regular Plan task (with the [[#detail]] link); the prompt-checkbox stays as the rhythm tally.
+When Jason answers a prompt with a specific item, add it as a regular Plan task (with the [[#detail]] link and existing Linear issue link where applicable); the prompt-checkbox stays as the rhythm tally.
 
 ## Session Flow
 
@@ -112,22 +114,22 @@ If invoked mid-day or the Plan/GoalsWon already reflects today's state, skip com
 
 4b. **Goal-vs-Plan gap check**: After priorities are drafted, briefly compare the Plan against current yearly goals (read `~/.claude/context-personal/goals.md` if not already loaded). Surface any unrepresented high-leverage area as one question: "Plan doesn't cover [X, Y]. Worth adding?" Let the user's actual goals drive what to check.
 
-1. **Surface compounder prompts** as Plan checkbox items per workday/off-work mode (see Compounding Activities). On workdays default-include 🌱/📈/👟; on off-work days drop 🌱/📈. If anchor banner names a missing modality (e.g. "week needs strength + VO2"), surface that in the 👟 prompt. When user picks a specific item from backlog as the answer, add it as a regular Plan task while keeping the prompt-checkbox as the rhythm tally.
+1. **Surface compounder prompts** as Plan checkbox items per workday/off-work mode (see Compounding Activities). On workdays default-include 🌱/📈/👟; on off-work days drop 🌱/📈. If anchor banner names a missing modality (e.g. "week needs strength + VO2"), surface that in the 👟 prompt. When user picks a specific item as the answer, add it as a regular Plan task while keeping the prompt-checkbox as the rhythm tally.
 2. Note planned transitions; offer `coach-timer` for work blocks and transitions
-3. **Refine `## Plan`** in daily note. Plan is title-only (one line per task, `→ [[#detail]]` links to Details). Edit in place: reorder, add/remove, adjust priorities. When adding a task needing context, create a matching `####` section in Details. Route persistent items by category: **RD-division work → a Linear issue** (`save_issue`: title, team Jason, appropriate project/labels/priority; state Backlog or Todo); **personal/life/compounding + non-RD admin → `backlog.md`**. Today-only items stay in Plan. Preserve the `*More in [[backlog]]*` reference line in Plan (added by prep agent). If no prep ran, create from scratch (include the backlog reference line).
+3. **Refine `## Plan`** in daily note. Plan is title-only (one line per task, `→ [[#detail]]` links to Details). Edit in place: reorder, add/remove, adjust priorities. When adding a task needing context, create a matching `####` section in Details. Route new persistent tasks in every category to Linear: reuse a matching issue or create one with the resolved Jason team and appropriate project/labels/priority, state Backlog or Todo. Today-only items stay in Plan. Preserve existing legacy backlog references; when creating a Plan from scratch, label that link `*Legacy items in [[backlog]]*`.
 
-**Natural language task commands**: Interpret "move to backlog", "defer", "pull from backlog/Linear", "reprioritize", "mark done" naturally. Route to the surface that owns the item's category — RD work → Linear (`save_issue` to create/reprioritize/move state; set `priority`, `state`, due date), personal/life → `backlog.md` (appropriate tier and cluster, with `(DATE)`, category emoji, `~effort`, resource link, stakeholder/deadline). Don't dual-maintain: an RD-work item lives in Linear OR backlog.md, never both. **Done transitions**: `/coach` moves issues among Backlog/Todo/In Progress freely; transition to **Done** only on an explicit "mark done" from Jason. Routine end-of-day completion reconciliation (matching finished Plan items to issues and closing them) is `/debrief`'s job, not coach's.
+**Natural language task commands**: Interpret "move to backlog", "defer", "pull from backlog/Linear", "reprioritize", "mark done" naturally. New persistent tasks and existing Linear tasks use Linear; "backlog" means its Backlog state unless Jason explicitly refers to a legacy note item. Existing legacy items may be curated in place or individually migrated with agreement. Never copy a Linear task into `backlog.md`. **Done transitions**: `/coach` moves issues among Backlog/Todo/In Progress freely; transition to **Done** only on an explicit "mark done" from Jason. Routine end-of-day completion reconciliation (matching finished Plan items to issues and closing them) is `/debrief`'s job, not coach's.
 
 1. **Task cross-check** (both surfaces): Present candidates that could fit today.
-   - **Linear (RD work)**: unblocked In Progress + Todo + high-priority Backlog issues, grouped by project, in `priority` order. "Available in Linear (RD): [grouped list]. Which fit today?" Highlight approaching due dates.
-   - **backlog.md (personal/life + legacy work)**: read `### Active`, filter out `⏳` blocked. Present unblocked Active grouped by cluster: "Available from backlog: [grouped list with ~effort]. Which fit today?" Highlight approaching deadlines and items stale >2 weeks. Also scan `### Backburner` for `[by DATE]` within 7 days; suggest promoting.
+   - **Linear (all persistent tasks)**: unblocked In Progress + Todo + high-priority Backlog issues, grouped by project, in `priority` order. "Available in Linear: [grouped list]. Which fit today?" Highlight approaching due dates.
+   - **backlog.md (legacy items)**: read `### Active`, filter out `⏳` blocked. Present unblocked Active grouped by cluster: "Available from legacy backlog: [grouped list with ~effort]. Which fit today?" Highlight approaching deadlines and items stale >2 weeks. Also scan `### Backburner` for `[by DATE]` within 7 days; suggest promoting.
    - Combined candidate cap: 8.
 
-   **Drain legacy RD-work → Linear** (the gradual migration; no bulk move): when a `backlog.md` item is Research-Division _work_ (Lot 4, CyberBio, Enhancing Genomics, MIX, division ops, etc.) and it surfaces or gets picked today, offer to move it to Linear: "This is RD work — move it to Linear? [create issue + remove the backlog line]." On yes, `save_issue` (team Jason, project/labels/priority/due date mapped from the item) and delete the backlog line. Don't force it; drain opportunistically as items come up. Personal/life items stay in `backlog.md`.
+   **Individual legacy migration**: when an existing backlog item surfaces or gets picked, offer to move that item to Linear. On agreement, check for an existing issue, create or reuse it with the relevant context and due date, verify success, then remove the backlog entry and link the issue from Plan/Details. On failure, preserve the original and report it. Do not bulk-migrate or infer consent from selecting an item for today's Plan.
 
-   Check if Plan items from external sources (prep signals, emails, meetings) should be tracked persistently — route by category (RD work → Linear issue, personal → backlog.md).
+   Check if Plan items from external sources (prep signals, emails, meetings) need persistent tracking; route Jason's follow-ups to Linear regardless of category, reusing existing issues.
 
-2. **Submit to GoalsWon** (interactive, any day). Focused subset of Plan, never the full list.
+2. **Submit to GoalsWon** (interactive, any day). Focused daily accountability subset of Plan, never a second persistent task backlog or the full list. Linear retains task ownership.
 
    Read `goalswon goals list --today --limit 50`. Use judgment to pick items:
    - ALWAYS: 🥇 priorities
@@ -176,8 +178,8 @@ Interactive review, typically Sunday or Monday. Runs when the user invokes it or
 
 **Groom both surfaces**:
 
-- **Linear (RD work)**: review the Jason team board — stale In Progress issues (started but untouched), Todo issues needing reprioritization, Backlog issues ready to promote to Todo. Reprioritize via `priority`; nudge Jason to sort in the UI (his preferred prioritization surface). Watch the 250-issue free-tier cap: close/cancel aggressively (Done/Canceled auto-archive off the cap).
-- **backlog.md (personal/life + legacy work)**: Curate Active (reorder, promote from Backburner, demote stale). Target ≤15 Active. Check Backburner for unblocked/approaching deadlines. Flag Active items with creation date >3 weeks. Trim `backlog-done.md` (>2 months). Nudge to drain any remaining RD-work items to Linear.
+- **Linear (all persistent tasks)**: review Jason's issues across projects for stale In Progress items, Todo items needing reprioritization and Backlog items ready to promote. Reprioritize via `priority`; nudge Jason to sort in the UI (his preferred prioritization surface). Keep the explicit Done authorization rule above; do not close tasks merely to reduce the issue count.
+- **backlog.md (legacy items)**: Curate existing Active items (reorder, promote from Backburner, demote stale). Target ≤15 Active. Check Backburner for unblocked/approaching deadlines. Flag Active items with creation date >3 weeks. Trim `backlog-done.md` (>2 months). Offer only individual migrations with agreement; do not add new persistent tasks here.
 
 **Prep calibration**: Read `calibration.md`. For stabilized patterns (3+ similar), propose edits to the prep agent spec `~/Projects/ops/dailies/morning-prep.md` and clear resolved items. **Pair every new rule with a verification step** in morning-prep.md §3c (Self-review). Folds without an enforcement check tend to revert (recurrence pattern observed: link specificity 03-12 → 03-13/03-21, calendar bleed 04-13 → 03-17, em-dash 03-16 → 04-28). When marking items ✅ folded, include the section the new rule landed in and the date.
 
@@ -208,13 +210,14 @@ Proactively offer for work blocks and before transitions. For appointments with 
 
 ## Plan Format
 
-```
+```markdown
 ## Plan
+
 - [ ] 🥇💻 priority work task → [[#Task detail]]
 - [ ] 💻 regular work task → [[#Task detail]]
 - [ ] 🌱 personal growth task
 - [ ] 👟 fitness/health task → [[#Weather]]
-🕊️ transition boundary
+      🕊️ transition boundary
 ```
 
 Titles only. Detail in `####` sections in Details. Max 4 🥇. Emojis combinable.
