@@ -15,14 +15,18 @@ You are tasked with syncing Claude configuration changes in the `~/.claude` dire
 
 ## 1. Check Git Status
 
-First, ensure we're in a git repository:
+First, verify the expected checkout:
 
 ```bash
-if [ ! -d ~/.claude/.git ]; then
-  echo "❌ Not a git repository. Initialize with: git -C ~/.claude init"
+config_root=$(cd ~/.claude && pwd -P) || exit 1
+repo_root=$(git -C "$config_root" rev-parse --show-toplevel 2>/dev/null) || repo_root=""
+if [ "$repo_root" != "$config_root" ]; then
+  echo "ERROR: ~/.claude is not the expected Git checkout"
   exit 1
 fi
 ```
+
+Stop and report this error. Do not initialize a replacement repository.
 
 Run `git -C ~/.claude status` to see what has changed. If there are no changes, inform the user and stop.
 
@@ -36,14 +40,14 @@ Check if any important files should be added:
 git -C ~/.claude ls-files --others --exclude-standard | grep -E '\.(md|json)$|^commands/' | head -20
 ```
 
-If any important files are untracked (like new commands), ask the user if they should be added.
+Classify each result by ownership before offering to add it. Never stage generated `AGENTS.md` files, generated skill or command entrypoints, external-repository links, or the live `settings.json`. Edit and stage the canonical source or manifest instead.
 
 ## 3. Examine Changes and Group Semantically
 
 For changed files, use `git diff` to see what changed. Analyze:
 
 - **Commands**: New, modified, or deleted slash commands
-- **Settings**: Changes to settings.json
+- **Settings**: Changes exported by `agent-config apply` to the tracked `settings.<kernel>.json` snapshot; `settings.json` is live host state and must never be staged
 - **Global instructions**: Updates to CLAUDE.md
 - **Configs**: Plugin or agent configurations
 
@@ -72,7 +76,7 @@ After all CLAUDE.md edits are final, run the reconciler. It regenerates `~/.code
 ```
 
 - Nonzero exit with `ERROR`/`ABORT` (renamed CLAUDE.md heading not in the section list, AGENTS.md over budget, missing/ambiguous root, invalid skill metadata, FOREIGN real file at a destination, credential-looking value in settings): STOP and report the exact line. Renaming a `##` heading in CLAUDE.md means editing `[codex.agents_md].sections` in the same commit.
-- `SETTINGS`/`KEY` drift lines mean the two hosts' settings differ on a key not listed in `host_only`: tell the user which key; fixing it means editing the live settings.json on the right host (never the snapshot) or adding the key to `host_only` with a reason. Hooks are compared per event with home paths normalized; a hook that exists on one host only goes on the other host too (same command with that host's home; the comparison ignores entries matching `host_only_hooks`, currently only the orca desktop hook).
+- `SETTINGS`/`KEY` drift lines mean the two hosts' settings differ on a key not listed in `host_only`: tell the user which key; fixing it means editing the live settings.json on the right host (never the snapshot) or adding the key to `host_only` with a reason. Hooks are compared per event with home paths normalized; a hook that exists on one host only goes on the other host too (same command with that host's home; the comparison ignores entries matching `host_only_hooks`, currently the Orca desktop and jcode hooks).
 - `STALE`/`UNDECLARED` lines are symlinks the manifest does not know; ask before removing anything.
 - Declare shared workflows under `[workflows.<id>]` in `agent-config.toml`, with canonical source, target/host scope, commands and dependencies. Add ignore rules for generated paths that Git does not already ignore; never commit a link outside the repository. Run `agent-config report --json` before changing selection. Its `selector_requirements` describe the native Claude, Codex and OMP prerequisites; update only those fields through supported configuration while preserving unrelated state and existing disables. Apply checks these selectors and does not write them for you. Codex disables must cover the resolved source path. Cairn receives OMP configuration and skills now, while OMP installation remains deferred.
 - Treat a shared-source pull as a live deployment. Add new shared paths without removing the old ones, deploy the sources, then deploy the manifest; retire old paths only after every applicable host has reconciled. Reconciliation must run after the relevant repository pulls complete successfully. A first cutover needs exact legacy-path adoption as well as selector setup; never remove a rollout hold until its preflight and apply/check pass. Commits go through the pre-commit hook; never use `--no-verify`.
@@ -85,7 +89,7 @@ Commit changes with descriptive messages following conventional commit format:
 
 - New command: `feat(commands): add sync-claude-config command`
 - Updated command: `feat(commands): enhance link-artifacts with error handling`
-- Settings change: `feat(settings): enable always-thinking mode`
+- Settings snapshot change: `feat(settings): enable always-thinking mode`
 - Instructions: `docs(claude): update global instructions for code reviews`
 - Multiple commands: `feat(commands): add backup and restore commands`
 - Fix: `fix(commands): correct path handling in sync-dotfiles`
@@ -103,7 +107,7 @@ Commit changes with descriptive messages following conventional commit format:
 **Scopes:**
 
 - `commands` - Slash commands
-- `settings` - settings.json
+- `settings` - tracked `settings.<kernel>.json` snapshots, never live `settings.json`
 - `claude` - CLAUDE.md
 - `plugins` - Plugin configs
 - `agents` - Agent definitions
@@ -151,7 +155,7 @@ Provide a summary:
 - **Review before committing**: Never commit secrets, tokens, or sensitive data
 - **Check .gitignore**: Ensure logs, cache, and session data are ignored
 - **Remote repository**: Consider a private repo for your configs
-- **New commands**: When you add commands in a session, this helps ensure they're tracked
+- **Generated files**: Never stage generated instructions, links, or live settings; commit their canonical source or manifest
 
 ## Security Checklist
 
@@ -162,12 +166,6 @@ Before committing, verify you're not committing:
 - Private conversation data
 - Machine-specific paths with sensitive info
 
-## First-time Setup
+## Missing checkout
 
-If this is the first time running:
-
-1. Initialize git: `git -C ~/.claude init`
-2. Verify .gitignore exists and is comprehensive
-3. Create initial commit: `git -C ~/.claude add -A && git -C ~/.claude commit -m "chore: initial Claude config commit"`
-4. (Optional) Add remote: `git -C ~/.claude remote add origin <your-repo-url>`
-5. (Optional) Push: `git -C ~/.claude push -u origin main`
+If `~/.claude` is not the expected checkout, stop and report it. This maintenance skill never initializes the repository, performs a blanket `git add -A`, creates an initial commit, or replaces its remote.
