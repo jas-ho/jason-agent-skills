@@ -153,7 +153,7 @@ Provide a summary:
 
 - **Keep commits atomic**: One logical change per commit
 - **Review before committing**: Never commit secrets, tokens, or sensitive data
-- **Check .gitignore**: Ensure logs, cache, and session data are ignored
+- **Check .gitignore**: The top level of ~/.claude is an allowlist (`/*` plus `!` lines); a new authored top-level file needs a `!` line, a new CLI runtime dir goes under the known-runtime list. `agent-config check` reports anything caught only by the catch-all as UNLISTED
 - **Remote repository**: Consider a private repo for your configs
 - **Generated files**: Never stage generated instructions, links, or live settings; commit their canonical source or manifest
 
