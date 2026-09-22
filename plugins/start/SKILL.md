@@ -147,32 +147,18 @@ Append a timestamped entry to `START.md` in the project folder:
 
 If START.md already exists, ALWAYS append the new entry at the end. NEVER overwrite existing content.
 
-### Step 8: Open tmux Session
+### Step 8: Prepare the Working Context
 
-```bash
-# Check if tmux is running
-if tmux list-sessions 2>/dev/null; then
-  # Check if session already exists
-  if tmux has-session -t "<project-name>" 2>/dev/null; then
-    tmux switch-client -t "<project-name>"
-  else
-    tmux new-session -d -s "<project-name>" -c "<project-path>"
-    tmux switch-client -t "<project-name>"
-  fi
-else
-  # tmux not running - just print the path, don't error
-  echo "tmux not running. Project created at <project-path>"
-fi
-```
+On the Mac, use the shared `workspace` skill when this is a substantial, clearly separate task. Let it decide desktop reuse/creation. Before creating a desktop, prepare the project session below and pass its exact name as `--tmux-session`; this keeps the same session convention as `spawn`. Let the skill handle prepare-and-return behavior. If desktop setup is unavailable before submitting a create, use the tmux-only flow. Once submitted, preserve partial work and report failures rather than starting a second setup path.
 
-Use the project folder name (kebab-case) as the tmux session name.
+Use the project folder's kebab-case name as the tmux session name. When creating a desktop, or when a tmux server already exists, reuse that exact session (`tmux has-session -t "=<project-name>"`) or create it detached with `tmux new-session -d -s "<project-name>" -c "<project-path>"`. Otherwise report the project path without starting a server. In the tmux-only flow, switch the current client only when the user wants to move there; otherwise report the session.
 
 ### Step 9: Print Confirmation
 
 Print a summary:
 
 - Project path (absolute)
-- tmux session name (or note that tmux is not running)
+- Desktop name/ID and tmux session when prepared, or any setup limitation
 - "START.md written for the next session"
 - If paper project: "Run `/paper-collab` to set up collaboration timeline and calendar reminders"
 
@@ -181,7 +167,6 @@ Print a summary:
 - **NEVER** create a project folder without user confirmation
 - **ALWAYS** search for existing projects before suggesting creation
 - **ALWAYS** append to START.md, never overwrite
-- If tmux is not running, just create the folder and print the path (don't error)
 - Category routing heuristics live in category CLAUDE.md files; read them, don't hardcode fallback rules unless no CLAUDE.md exists
 
 ## Integration with /paper-collab

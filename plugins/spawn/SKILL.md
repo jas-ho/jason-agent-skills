@@ -102,6 +102,10 @@ prompt per task, then call that script.
 
    The script does not steal focus; the user switches over when ready.
 
+## Optional macOS desktop
+
+After the launch report, use the shared `workspace` skill when a successfully spawned task deserves a separate desktop. Pass the report's `session` as `--tmux-session`; do not infer it from the task name or launch another agent. Follow that skill's reuse and prepare-and-return policy. Multiple tasks in one directory share a tmux session, so a new desktop may show its current window rather than the spawned `target`; report that target without changing other clients' selections. If desktop setup fails, keep the running agent and report the desktop failure separately. On other hosts, retain the tmux-only flow.
+
 ## Handoff brief checklist (fresh mode)
 
 A fresh session has none of this conversation's context. Each brief must stand
@@ -113,8 +117,7 @@ alone and include:
 - **Context and decisions** from this conversation — the why, constraints,
   prior choices, key facts.
 - **File pointers** — absolute paths to read first; if the task is centered
-  on one file the user is editing, make the first action "invoke the co-edit
-  skill on <file>".
+  on one file the user is editing, make the first action `invoke the co-edit skill on <file>`.
 - **Guardrails** — operations that need the user's explicit approval in the
   new session.
 - **Hub ownership** — what related work stays in the originating thread, so
