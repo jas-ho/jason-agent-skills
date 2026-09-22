@@ -31,7 +31,7 @@ and that's where the value comes from.
 
 The canonical authored package lives in `jason-agent-skills/plugins/codex-pair`. The shared agent-config manifest installs per-harness links and command entry points; do not copy this package into a second live source tree.
 
-The updated one-shot, persistent-review, and writable-implementation contracts in SKILL.md supersede the original single launcher. They have been inspected against the installed CLI help; this staged migration has not yet exercised a new real counterpart run.
+The one-shot, persistent-review, and writable-implementation contracts in SKILL.md supersede the original single launcher. Claude one-shot isolation was exercised on September 22, 2026 with Claude Code 2.1.278; persistent resume and writable implementation were not re-tested in that diagnosis.
 
 ## Validation status
 
@@ -65,8 +65,15 @@ Observed on macOS, codex-cli via volta, ChatGPT-plan auth, June–September 2026
 - Backgrounding a _foreground_ codex run from the Claude Code UI can kill it
   silently (0-byte output, stdin/TTY detach). Always launch as a background
   task from the start, with `< /dev/null`.
-- `codex exec` runs that need to read files themselves can hang for hours with
-  0-byte output. Inlining the content into the prompt avoids this entirely.
+- Some `codex exec` runs that needed file access produced no output for hours. Inlining the complete artifact avoided that failure in those runs; it does not establish the cause of every silent review.
+
+## Claude review diagnosis (September 22, 2026)
+
+On Claude Code 2.1.278, a tiny prompt using the old review flags consumed roughly 119,900 input tokens. `--tools ''` removed built-in tools but left about 200 configured MCP tools exposed. The same prompt with `--strict-mcp-config` and no supplied servers used about 11,500 input tokens; safe mode used about 4,900. These controlled comparisons demonstrate substantial MCP schema overhead. They do not identify which request or service caused every historical failure.
+
+The historical workspace review log recorded only a 150-second timeout, so its exact internal failure cannot be reconstructed. A separate successful review took 177 seconds. A streamed replay of the already-inlined workspace artifact was still actively reasoning when a diagnostic 240-second limit expired: silence in buffered print output is insufficient evidence of a hang. A second replay of the same 74,948-byte historical artifact completed successfully in 363.8 seconds with the configured default model, no tools or MCP servers, and a substantive verdict. The revised command isolates self-contained reviews, streams progress, retains errors, and requires a successful terminal result rather than assuming initialization means success.
+
+Safe mode preserves normal authentication and configured model selection. `--bare` is unsuitable as a drop-in replacement for subscription login because it skips OAuth/keychain reads. These changes apply to inlined review jobs, not interactive work or writable implementation. Skill links are unchanged; no account configuration or MCP service was disabled globally.
 
 ## Provenance
 

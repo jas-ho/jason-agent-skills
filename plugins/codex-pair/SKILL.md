@@ -32,20 +32,24 @@ Read the following contracts before constructing the actual command. Replace pro
 These commands cannot support a later resume because persistence is deliberately off:
 
 ```bash
-# Claude reviewer, no file/command tools; content is inlined in the prompt.
-claude -p --no-session-persistence --tools '' --permission-mode plan \
-  --no-chrome --disable-slash-commands -- "$(cat /tmp/review-prompt.txt)" \
-  < /dev/null > /tmp/claude-review.txt 2>&1
+# Claude reviewer, isolated inlined context and no built-in or MCP tools.
+claude -p --safe-mode --strict-mcp-config --no-session-persistence \
+  --tools '' --permission-mode plan --no-chrome --disable-slash-commands \
+  --output-format stream-json --verbose --include-partial-messages \
+  -- "$(cat /tmp/review-prompt.txt)" \
+  < /dev/null > /tmp/claude-review.jsonl 2> /tmp/claude-review.stderr
 # Codex reviewer, read-only execution and no saved session.
 codex exec --ephemeral -s read-only --skip-git-repo-check \
   -- "$(cat /tmp/review-prompt.txt)" < /dev/null > /tmp/codex-review.txt 2>&1
 ```
 
+Verify these flags against the installed CLI help. `--tools ''` disables only built-in tools: `--strict-mcp-config` with no supplied servers excludes configured MCP servers. For self-contained reviews, `--safe-mode` also removes unrelated customizations while retaining normal auth, model selection, permissions and managed policy. Inline the relevant project constraints because automatic instruction loading is disabled. Do not substitute `--bare`: it skips subscription OAuth/keychain authentication. If safe mode is unavailable, retain explicit MCP isolation and report any remaining customization load.
+
 Use unique actual paths rather than these fixed example names. A fresh reviewer can evaluate a subsequent complete artifact, but that is a new review, not a resumed thread.
 
 ### Persistent review rounds
 
-When follow-up rounds are planned, keep persistence from the first call. For Claude omit `--no-session-persistence`, retain `--tools '' --permission-mode plan`, and request `--output-format json`; record its returned `session_id`. Follow up with `claude -p --resume <exact-id>` and the same restrictions. For Codex omit `--ephemeral`, retain read-only permissions, and request `--json`; capture the returned thread identity from the installed CLI's event schema. Follow up with `codex exec resume <exact-id>` under the same verified read-only configuration. Verify supported options on the installed CLI before constructing a resume command; options are not identical between initial exec and resume.
+When follow-up rounds are planned, keep persistence from the first call. For Claude omit `--no-session-persistence`, retain the isolation, tool restrictions and streaming flags above, and record the returned `session_id`. Follow up with `claude -p --resume <exact-id>` and the same restrictions. For Codex omit `--ephemeral`, retain read-only permissions, and request `--json`; capture the returned thread identity from the installed CLI's event schema. Follow up with `codex exec resume <exact-id>` under the same verified read-only configuration. Verify supported options on the installed CLI before constructing a resume command; options are not identical between initial exec and resume.
 
 Never use the latest-session selector, an ambiguous nickname, or a parent session inferred from newest-file timestamps. Missing identity means a fresh review with complete context or an explicit failure to resume, not a guessed continuation. Do not resume a thread still owned by another running process.
 
@@ -58,7 +62,9 @@ Record the exact returned identity and resume only it with the same scope. The c
 ### Shared operational rules
 
 - Use the configured default model unless the user selects one or an unavailable default needs a supported replacement.
-- For REVIEW, inline the artifact and say “do not read files or run commands.” If a run has zero-byte output and remains idle after a few minutes, stop only that owned process and retry once with the complete artifact inlined.
+- For REVIEW, inline the artifact and relevant constraints and say “do not read files or run commands.”
+- Observe streamed progress separately from the final result. Initialization or thinking events prove activity, not completion; require a terminal result with no error and a successful process exit and a substantive response ending in the requested verdict before accepting the review. Preserve stdout and stderr on failure. Extract the final result text for adjudication rather than presenting raw event logs.
+- Choose a bounded review budget proportional to the artifact (for example, ten minutes for a substantial multi-file review), and poll via the owning harness without blocking user updates. A 150-second total timeout is too short for some successful reviews. Empty text output alone is not evidence of idleness because print mode can buffer the entire answer. If no progress is observable, inspect errors and isolate startup with a tiny prompt before retrying once; stop only the owned process. Never retry an already inlined prompt merely because its answer has not appeared.
 - Keep user updates while a job runs. Interpret CLI errors and nonzero status before trusting the text output.
 
 ## REVIEW mode
@@ -98,7 +104,7 @@ contracted implementer.
    `tests/checks.sh` running contract tests (fixtures from real data; assert
    presence/absence, not exact formatting — leave design room), syntax checks,
    linters. **Commit spec + gate before the counterpart starts.**
-3. Prompt: "Implement docs/specs/<x>.md. Iterate until `bash tests/checks.sh`
+3. Prompt: "Implement `docs/specs/<name>.md`. Iterate until `bash tests/checks.sh`
    exits 0. Do NOT modify anything under tests/ — if a test seems wrong,
    satisfy it and flag it in your summary. Do not git-commit. Keep diffs
    minimal, match each file's style. Summarize design decisions at the end."
@@ -112,15 +118,14 @@ contracted implementer.
    gap between "asserted" and "well-formed": formatting, races, UX feel.
 6. Fix taste-level issues yourself, verify end-to-end (browser/manual where
    relevant), commit with authorship noted ("Implemented by the counterpart against
-   docs/specs/<x>.md; reviewed and touched up").
+   `docs/specs/<name>.md`; reviewed and touched up").
 7. For high-stakes work: keep one or two acceptance scenarios OUT of the repo
    (holdout) and check them manually at review time — tests in the tree can be
    gamed even without edits, by bending the implementation around them.
 
 ## Known failure modes
 
-- Hung review with 0-byte output after minutes: the prompt needed file access.
-  Kill, inline the content, relaunch.
+- Silent review: distinguish buffered model reasoning from startup/auth/tool-loading failure using streamed events and stderr. Inlining solves missing artifact access, not every cause of delayed output. See the measured Claude setup diagnosis in README.md.
 - The counterpart flagging nonexistent bugs: settle with a test that proves it one way
   or the other, not with argument.
 - Setup-specific failure modes (plugin runtimes, account/model restrictions,
