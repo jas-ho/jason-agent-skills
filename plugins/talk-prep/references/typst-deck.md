@@ -14,7 +14,7 @@ The default path: a Typst deck in the project folder, next to the outline (not i
 
 Load the `deck-lint` skill; it owns the commands, flags and config. talk-prep only sets the cadence:
 
-- **After each batch of edits:** `check --typ`, with the same `--input` flags as the real build.
+- **After each batch of edits:** `check --typ` with the deck's config.
 - **Once per major revision:** a design review from the contact sheet, before Jason finds problems piecemeal:
   - one body size;
   - one list spacing;
@@ -22,7 +22,7 @@ Load the `deck-lint` skill; it owns the commands, flags and config. talk-prep on
   - date format;
   - footer and source lines distinguishable;
   - no one-word overrun lines.
-- **From the first build:** a `deck-lint.toml` next to the deck, with a `forbidden` list (internal IDs, speaker-guidance phrases like "Do not quote", known misspellings of names). The check then catches leaks on every run, not only before delivery.
+- **From the first build:** a `deck-lint.toml` next to the deck, with the public build's `inputs` (so the check lints the real deck) and a `forbidden` list (internal IDs, speaker-guidance phrases like "Do not quote", known misspellings of names). The check then catches leaks on every run, not only before delivery.
 - **Refer to slides by title,** not page number. Page numbers shift with every edit.
 
 ## Workflow
