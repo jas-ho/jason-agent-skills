@@ -1,6 +1,6 @@
 # Typst deck
 
-The default path: a Typst deck in the project folder, next to the outline (not in `~/Code`, where Jason can't see it). Build with `typst compile`; check with deck-lint (load the `deck-lint` skill for its contract).
+The default path: a Typst deck in the project folder, next to the outline (not in `~/Code`, where Jason can't see it). Build with `typst compile`; check with deck-lint.
 
 ## Structure from the start
 
@@ -12,21 +12,18 @@ The default path: a Typst deck in the project folder, next to the outline (not i
 
 ## Checking
 
-- **After each batch of edits:** `deck-lint check --typ deck.typ --json`, with the same `--input` flags as the build. Fix spillover and collisions; judge wrap and runt warnings in context.
-- **Visual review:** `deck-lint sheet deck.pdf --output <new-name>.png --columns 4 --width 420`, then look at the sheet. Render single pages at 120 ppi or more before trusting a "missing" element; at 60 ppi bullets can vanish.
-- **Refer to slides by title,** not page number. Page numbers shift with every edit.
-- **Systematic design review from the sheet, once per major revision,** before Jason finds problems piecemeal:
+Load the `deck-lint` skill; it owns the commands, flags and config. talk-prep only sets the cadence:
+
+- **After each batch of edits:** `check --typ`, with the same `--input` flags as the real build.
+- **Once per major revision:** a design review from the contact sheet, before Jason finds problems piecemeal:
   - one body size;
   - one list spacing;
   - quote style matching the source type;
   - date format;
   - footer and source lines distinguishable;
   - no one-word overrun lines.
-- **Pre-delivery grep** on the built PDF for leaks and typos:
-
-  ```bash
-  pdftotext deck.pdf - | grep -nE 'Do not|TODO|OAI-[0-9]+|<internal ids>|<name misspellings>'
-  ```
+- **From the first build:** a `deck-lint.toml` next to the deck, with a `forbidden` list (internal IDs, speaker-guidance phrases like "Do not quote", known misspellings of names). The check then catches leaks on every run, not only before delivery.
+- **Refer to slides by title,** not page number. Page numbers shift with every edit.
 
 ## Workflow
 
