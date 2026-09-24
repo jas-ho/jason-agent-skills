@@ -6,7 +6,7 @@ Applies to outline prose, slide text, speaker notes and the talk page. General a
 
 - **Titles and takeaways** must read plainly to an outsider without the speaker. Bullets can stay short cues.
 - **Expand every acronym on first use**, in the slide or in the notes.
-- **No internal labels, IDs or file names** on slides ("95/5 split", `OAI-0721`, "research-political-fallout").
+- **No internal labels, IDs or file names** on slides (team shorthand, citation codes, research file names).
 - **No reference back to a term that was never named** ("did both" needs the two things named first).
 - **No abstract noun stacks** ("Evaluate the collective"). Say who does what: "Test agents as a group, not one by one."
 - **When Jason says he doesn't get a line, reword it.** Don't add an explanation line under it. If the second attempt still isn't clear, ask what he'd say, in his own words.

@@ -44,4 +44,4 @@ Shift the dates for a short lead time, but keep the order. These are checkpoints
 - Apply clear instructions directly.
 - Batch pending decisions into one structured question round with a recommended default.
 - After 2-3 rounds of small edits on one slide, ask whether it needs restructuring rather than more phrasing.
-- In co-edit mode, never rewrite a region he is typing in; wait for the marker's sign-off.
+- For files Jason co-edits (outline, deck), load the `co-edit` skill and write only through its guarded writer, never heredocs or direct file writes. Direct writes caused the lost typing and the echo noise in 09/2026. Never rewrite a region he is typing in; wait for the marker's sign-off.
