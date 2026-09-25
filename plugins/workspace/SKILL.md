@@ -21,7 +21,7 @@ workspace create "Task name" --json
 workspace create "Task name" --directory /absolute/project --json
 ```
 
-Omit `--tmux-session` to get a new session. Supply it only for an existing session chosen for this task; `--directory` does not reset that session's working state. Attachment leaves other clients connected and does not select a particular tmux window.
+Name alone links the terminal to an exact existing tmux session or a configured project folder, otherwise creating a fresh home session. Explicit `--directory` or `--tmux-session` overrides linking; use `--directory ~` for a fresh home session. Supply `--tmux-session` only for an existing session chosen for this task; `--directory` does not reset that session's working state. Attachment leaves other clients connected and does not select a particular tmux window.
 
 Use `workspace COMMAND --help` for options, including repeated `--url`, `--note` and `--config`. Use fresh desktop IDs from `list` or the create result; desktop numbers are positional and IDs must be refreshed after reboot/removal.
 
