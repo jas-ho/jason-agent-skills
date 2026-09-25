@@ -1,15 +1,8 @@
 # codex-pair
 
-A shared CC/Codex/OMP workflow for explicitly cross-model pairing with the Claude or Codex CLI. Two
-modes: **REVIEW** (codex reviews a diff, plan, or prompt that Claude authored;
-verdict protocol, bounded rounds, session-resume so later rounds verify fixes)
-and **IMPLEMENT** (Claude writes a spec plus an executable acceptance gate,
-codex implements until the checks pass, Claude reviews the diff hard). The
-invariant behind both: the author is never the reviewer, and the reviewer never
-implements its own feedback — the models have decorrelated error distributions,
-and that's where the value comes from.
+A shared CC/Codex/OMP workflow for cross-model REVIEW and IMPLEMENT. Codex-authored work is reviewed by Claude; Claude-authored work is reviewed by Codex. The author and reviewer are different model families, and reviewers never implement their own feedback.
 
-> **Requires the `codex` CLI, authenticated.** Verified against codex-cli
+> **Requires the counterpart CLI, authenticated (`claude` or `codex`).** Earlier Codex runs were verified against codex-cli
 > 0.153.4 (September 2026, first verified on 0.139.0 in June 2026); flags and
 > model behavior drift, so re-verify after major CLI updates. On ChatGPT-plan
 > accounts, pinning a model the account is not entitled to is rejected with
@@ -56,7 +49,7 @@ Observed on macOS, codex-cli via volta, ChatGPT-plan auth, June–September 2026
   app-server inside the parent sandbox — not separately demonstrated) and its bundled
   runtime rejects current models (plugin 1.0.6 still maps names to
   `gpt-5.3-codex-spark`-era models, September 2026). Driving the PATH `codex`
-  CLI directly avoids both.
+  CLI directly avoided those plugin failures in that setup; it did not avoid the sandbox startup failure in the Codex-hosted run below.
 - `codex login status` can report logged-in after the refresh token was
   revoked (2026-09-08); the first real `codex exec` then fails. Smoke-test
   with a trivial exec after any account change.
@@ -66,6 +59,21 @@ Observed on macOS, codex-cli via volta, ChatGPT-plan auth, June–September 2026
   silently (0-byte output, stdin/TTY detach). Always launch as a background
   task from the start, with `< /dev/null`.
 - Some `codex exec` runs that needed file access produced no output for hours. Inlining the complete artifact avoided that failure in those runs; it does not establish the cause of every silent review.
+
+## Codex sandbox startup failure (September 25, 2026)
+
+The former repo checklist prompted an additional same-family Codex review; the required Claude review route was unaffected. From that Codex session on macOS, codex-cli 0.157.0 failed before reviewing Codex-authored work while loading AGENTS.md: `sandbox_apply: Operation not permitted`, filesystem helper exit 71. `codex sandbox /usr/bin/true` failed identically in ordinary and escalated tool calls; the bare probe below also failed in ordinary execution. Inherited confinement is a hypothesis; the enforcing layer is unidentified, and escalation did not resolve the Codex probe. Other agent hosts and `codex exec` were not tested. No version regression or machine-wide failure has been established.
+
+On this startup signature, report that no review occurred. The reviewer’s model family follows the author: use Claude for Codex-authored work, Codex for Claude-authored work. If the required counterpart cannot start, cross-model review stays open; a same-family worker cannot replace it. Supply the complete artifact and relevant context using the skill’s REVIEW contract. Do not relax sandbox settings or sensitive-file denies: the outer policy is not known to match the child’s protections.
+
+For an outside-host control, use a terminal launched directly by the user. Compare `command -v codex` and `codex --version`, then run `codex sandbox /usr/bin/true; echo "exit=$?"`. If it fails, compare the bare probe shown below:
+
+```sh
+/usr/bin/sandbox-exec -p '(version 1)(deny default)(allow process*)(allow file-read*)(allow sysctl-read)' /usr/bin/true
+echo "exit=$?"
+```
+
+Interpret the error, not exit status alone: the same `sandbox_apply` error on both probes points to broader execution policy; bare success with Codex failure points to its invocation/profile. Outside-host success with in-host failure supports a host-context restriction, without identifying the exact layer. A directly launched terminal is an acceptable interim route with existing protections intact. Validate the skill’s one-shot `codex exec` launcher with a tiny inlined prompt before using it for a complete REVIEW artifact; require exit 0, substantive final output and no sandbox/helper error. Separately, verify a bounded real `codex review --commit <sha>` before claiming the dedicated review command is repaired. Classify unrelated stderr warnings separately. Outside-host verification remains pending; this is review-routing guidance, not a verified CLI repair.
 
 ## Claude review diagnosis (September 22, 2026)
 
@@ -83,4 +91,4 @@ The redaction rule — never show the reviewer the author's self-assessment —
 is the best-quantified finding in that corpus (~2–4x effect on review
 quality). The writer ≠ reviewer invariant holds across practitioners who run
 the roles in either direction; the direction itself is contested, which is
-why the skill has a routing table instead of a fixed assignment.
+why the skill supports both author/reviewer directions.

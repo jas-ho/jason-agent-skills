@@ -62,16 +62,14 @@ Record the exact returned identity and resume only it with the same scope. The c
 ### Shared operational rules
 
 - Use the configured default model unless the user selects one or an unavailable default needs a supported replacement.
-- For REVIEW, inline the artifact and relevant constraints and say “do not read files or run commands.”
+- For REVIEW, inline the complete artifact and relevant constraints and say “do not read files or run commands.” For code, include the full scoped diff (staged, unstaged and all untracked files in scope), affected interfaces and tests; a summary is insufficient. Record the reviewed commit/diff, supplied context, reviewer and verdict in the completion report. Missing context must be supplied before claiming that scope reviewed.
 - Observe streamed progress separately from the final result. Initialization or thinking events prove activity, not completion; require a terminal result with no error and a successful process exit and a substantive response ending in the requested verdict before accepting the review. Preserve stdout and stderr on failure. Extract the final result text for adjudication rather than presenting raw event logs.
 - Choose a bounded review budget proportional to the artifact (for example, ten minutes for a substantial multi-file review), and poll via the owning harness without blocking user updates. A 150-second total timeout is too short for some successful reviews. Empty text output alone is not evidence of idleness because print mode can buffer the entire answer. If no progress is observable, inspect errors and isolate startup with a tiny prompt before retrying once; stop only the owned process. Never retry an already inlined prompt merely because its answer has not appeared.
 - Keep user updates while a job runs. Interpret CLI errors and nonzero status before trusting the text output.
 
 ## REVIEW mode
 
-1. Build the prompt file: context (what the change is for, constraints the reviewer
-   can't infer) + the artifact fenced in (diff via `git diff`, or the
-   plan/prompt text) + "do NOT read files or run commands".
+1. Build the prompt file: relevant context plus the complete artifact and "do NOT read files or run commands". For current code changes, collect `git diff HEAD` and append all untracked files in the review scope; plain `git diff` omits staged and untracked changes. For a committed change, supply its diff and relevant surrounding context.
 2. **Redaction rule (best-evidenced finding in the field, ~2-4x review-quality
    effect): never include the author's self-assessment** — no "tests pass",
    no "I addressed X", no PR-style summary. The reviewer gets artifact +
@@ -125,6 +123,7 @@ contracted implementer.
 
 ## Known failure modes
 
+- Sandbox startup failure: `sandbox_apply: Operation not permitted` (observed with helper exit 71) means no review occurred. Other sandboxed agent hosts may encounter it too; this has not been verified. See [README.md](README.md#codex-sandbox-startup-failure-september-25-2026) before retrying; do not weaken permissions. A same-family worker can supplement review but leaves required cross-model coverage incomplete.
 - Silent review: distinguish buffered model reasoning from startup/auth/tool-loading failure using streamed events and stderr. Inlining solves missing artifact access, not every cause of delayed output. See the measured Claude setup diagnosis in README.md.
 - The counterpart flagging nonexistent bugs: settle with a test that proves it one way
   or the other, not with argument.
