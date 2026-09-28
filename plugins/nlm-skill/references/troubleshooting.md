@@ -1,18 +1,19 @@
-# NotebookLM CLI - Troubleshooting Guide
+# Gemini Notebook (formerly Google NotebookLM) CLI - Troubleshooting Guide
 
 This document provides detailed solutions for common issues when using the `nlm` CLI.
 
 ## Quick Diagnosis
 
-| Symptom                        | Likely Cause       | Quick Fix                                  |
-| ------------------------------ | ------------------ | ------------------------------------------ |
-| "Cookies have expired"         | Session timeout    | `nlm login`                                |
-| "Notebook not found"           | Invalid/stale ID   | `nlm notebook list`                        |
-| "Source not found"             | Invalid source ID  | `nlm source list <nb-id>`                  |
-| Browser doesn't open           | Port conflict      | Close existing browser, retry              |
-| "Research already in progress" | Pending task       | `--force` or import existing               |
-| "nodename nor servname"        | Network blocked    | See [Sandbox Users](#sandbox-environments) |
-| Commands hang forever          | Network/auth issue | Ctrl+C, `nlm login`                        |
+| Symptom                                      | Likely Cause                | Quick Fix                                  |
+| -------------------------------------------- | --------------------------- | ------------------------------------------ |
+| "Cookies have expired" / auth status `stale` | Credentials rejected        | `nlm login`                                |
+| Auth status `unverified`                     | Network/proxy probe failure | Check connectivity or try an API call      |
+| "Notebook not found"                         | Invalid/stale ID            | `nlm notebook list`                        |
+| "Source not found"                           | Invalid source ID           | `nlm source list <nb-id>`                  |
+| Browser doesn't open                         | Port conflict               | Close existing browser, retry              |
+| "Research already in progress"               | Pending task                | `--force` or import existing               |
+| "nodename nor servname"                      | Network blocked             | See [Sandbox Users](#sandbox-environments) |
+| Commands hang forever                        | Network/auth issue          | Ctrl+C, `nlm login`                        |
 
 ---
 
@@ -27,7 +28,8 @@ Error: Cookies have expired. Please run 'nlm login' to re-authenticate.
 Error: authentication may have expired
 ```
 
-**Cause:** NotebookLM sessions last approximately 20 minutes.
+**Cause:** Gemini Notebook rejected the stored credentials. Cookies often remain
+usable for weeks, so do not re-authenticate solely because time has passed.
 
 **Solution:**
 
@@ -38,8 +40,9 @@ nlm login
 **Prevention:** For long-running scripts, implement periodic re-authentication:
 
 ```bash
-# Check auth before critical operations
-nlm login --check || nlm login
+# Check auth before critical operations; re-login only if it reports
+# stale/missing credentials (network failures also exit non-zero)
+nlm login --check
 ```
 
 ### Browser Doesn't Launch
@@ -116,6 +119,30 @@ nlm login --check || nlm login
 
 ## Network Issues
 
+### Proxy Environments
+
+HTTP, HTTPS, and SOCKS proxy environment variables are supported. If a SOCKS
+environment fails with a missing `socksio` import, upgrade or reinstall
+`notebooklm-mcp-cli` 0.7.7 or newer. The client sanitizes only malformed
+CIDR-style `no_proxy` entries; valid IPv6 loopback and `host:port` entries are
+preserved.
+
+### RPC Method-ID Drift
+
+Gemini Notebook can rotate internal RPC method IDs without notice. When
+`RPCDriftError` identifies a replacement:
+
+1. Run the failing command with `--debug` and inspect the returned RPC IDs.
+2. Set the suggested override, for example:
+   ```bash
+   export NOTEBOOKLM_RPC_OVERRIDES='{"RPC_LIST_NOTEBOOKS":"newId"}'
+   ```
+3. Restart the MCP server. CLI commands read the environment on their next
+   invocation.
+
+An entirely empty response has no RPC IDs to compare and may still return
+without a drift diagnosis.
+
 ### Sandbox Environments
 
 **Symptom:**
@@ -132,7 +159,7 @@ Hint: Check your internet connection.
 Check the active Codex permission profile and whether it allows the required network connection. Request supported network access for the `nlm` command if needed, then retry. Do not disable the filesystem sandbox to fix networking. Existing native authentication remains the credential source; do not copy credentials into a workaround.
 
 **Solution for Docker/Containers:**
-Ensure the container has network access and can reach `notebooklm.google.com`.
+Ensure the container has network access and can reach `notebook.google.com`.
 
 ### Rate Limiting
 
@@ -142,21 +169,26 @@ Ensure the container has network access and can reach `notebooklm.google.com`.
 Error: Rate limit exceeded
 ```
 
-**Cause:** Too many API calls in a short period. Free tier: ~50 queries/day.
+**Cause:** Too many API calls in a short period. Query and Studio generation
+limits are separate and undocumented; video limits may require a longer pause.
 
 **Solutions:**
 
 1. **Wait and retry:**
 
    ```bash
-   sleep 30
+   sleep 120  # Studio/video generation; shorter waits may be enough for queries
    # Retry command
    ```
+
+   Built-in retries use a short 1/2/4-second backoff for transient failures.
+   They do not wait through a minute-scale Studio quota window.
 
 2. **Implement throttling in scripts:**
 
    ```bash
-   # Wait 2 seconds between operations
+   # Run Studio/video creation sequentially; avoid parallel generation batches.
+   # Wait 2 seconds between lightweight source operations.
    nlm source add $ID --url "..." && sleep 2
    nlm source add $ID --url "..." && sleep 2
    ```
@@ -168,6 +200,13 @@ Error: Rate limit exceeded
 ---
 
 ## Source Issues
+
+### File Not Found During Upload
+
+`source_add(source_type="file")` and `nlm source add --file` read files from
+the machine running the MCP server or CLI. A path on a phone, browser, or
+different agent host is not transferred automatically. Use a server-local
+path. Errors include the underlying file reason and the received path.
 
 ### Source Not Found
 
@@ -230,6 +269,9 @@ nlm source sync <notebook-id> --confirm
 # Sync specific sources
 nlm source sync <notebook-id> --source-ids <id1>,<id2> --confirm
 ```
+
+When `--skip-freshness` / `-S` is used, `stale=null` means freshness was not
+checked. It does not mean the source is fresh.
 
 ---
 
@@ -296,6 +338,9 @@ Error: Research already in progress
 - Audio podcasts: 2-5 minutes
 - Videos: 3-7 minutes
 - Deep research: 4-5 minutes
+
+Deep research can take longer. MCP `research_status` and CLI auto-import wait
+up to 15 minutes by default.
 
 **Solution:** Keep polling:
 

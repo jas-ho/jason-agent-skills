@@ -1,4 +1,4 @@
-# NotebookLM CLI - Complete Command Reference
+# Gemini Notebook (formerly Google NotebookLM) CLI - Complete Command Reference
 
 This document contains the complete command signatures and all available options for every `nlm` command.
 
@@ -18,6 +18,8 @@ This document contains the complete command signatures and all available options
 12. [Chat Commands](#chat-commands)
 13. [Alias Commands](#alias-commands)
 14. [Config Commands](#config-commands)
+15. [Organization and Automation](#organization-and-automation)
+16. [Setup, Skill, and Diagnostics](#setup-skill-and-diagnostics)
 
 ---
 
@@ -37,7 +39,7 @@ nlm --help             # Show help and exit
 
 ### nlm login
 
-Authenticate with NotebookLM using the managed browser auth flow.
+Authenticate with Gemini Notebook using the managed browser auth flow.
 
 ```bash
 nlm login [OPTIONS]
@@ -49,10 +51,11 @@ nlm login [OPTIONS]
 | `--check` | | Validate current credentials without re-authenticating |
 | `--provider` | | Auth provider: `builtin` (default) or `openclaw` |
 | `--cdp-url` | | CDP endpoint URL for external provider mode (default: `http://127.0.0.1:18800`) |
-| `--legacy` | `-l` | Use browser-cookie3 fallback (not recommended) |
-| `--browser` | `-b` | Browser for legacy mode (chrome, chromium, edge) |
 | `--manual` | `-m` | Import cookies from file |
 | `--file` | `-f` | Cookie file path for manual mode |
+| `--force` | | Replace credentials even if the detected account differs |
+| `--clear` | | Clear stored browser/profile state before login |
+| `--wsl` | | Use the WSL/Windows-browser authentication path |
 
 **Note**: Each profile gets its own isolated Chrome session, so you can be logged into multiple Google accounts simultaneously.
 
@@ -129,6 +132,7 @@ nlm notebook create <title> [OPTIONS]
 
 | Option | Short | Description |
 |--------|-------|-------------|
+| `--json` | `-j` | Output stable machine-readable result |
 | `--profile` | `-p` | Use specific profile |
 
 ### nlm notebook get
@@ -210,12 +214,14 @@ nlm source list <notebook-id> [OPTIONS]
 |--------|-------|-------------|
 | `--json` | | Output as JSON |
 | `--quiet` | `-q` | Output IDs only |
-| `--title` | | Output as "ID: Title" |
 | `--url` | | Output as "ID: URL" |
 | `--full` | | Show all columns (wider URL display) |
 | `--drive` | | Show Drive sources with freshness status |
 | `--skip-freshness` | `-S` | Skip freshness checks (faster with --drive) |
 | `--profile` | `-p` | Use specific profile |
+
+When freshness is skipped, `stale`/`is_stale` is `null` (unknown), not
+`false` (fresh).
 
 ### nlm source add
 
@@ -228,7 +234,8 @@ nlm source add <notebook-id> [OPTIONS]
 **URL Source:**
 | Option | Description |
 |--------|-------------|
-| `--url` | URL to add (web page or YouTube) |
+| `--url` | URL to add; repeat for bulk URL add |
+| `--youtube` | Explicit YouTube URL |
 
 **Text Source:**
 | Option | Description |
@@ -242,6 +249,13 @@ nlm source add <notebook-id> [OPTIONS]
 | `--drive` | Google Drive document ID |
 | `--type` | Drive doc type: `doc`, `slides`, `sheets`, `pdf` |
 | `--title` | Display title |
+
+**File Source:**
+| Option | Description |
+|--------|-------------|
+| `--file` | Local path on the machine running `nlm` |
+| `--wait` | Wait until Gemini Notebook finishes processing |
+| `--wait-timeout` | Processing timeout in seconds |
 
 | Option | Short | Description |
 |--------|-------|-------------|
@@ -351,11 +365,12 @@ nlm research start <query> [OPTIONS]
 
 | Option | Description |
 |--------|-------------|
-| `--notebook-id` | **Required** - Target notebook ID |
+| `--notebook-id` | Existing target notebook ID |
+| `--title` | Create a new destination notebook with this title |
 | `--mode` | `fast` (default, ~30s) or `deep` (~5min, web only) |
 | `--source` | `web` (default) or `drive` |
 | `--force` | Override pending research |
-| `--auto-import` | Wait for completion and automatically import sources (alias: `--wait-and-import`) |
+| `--auto-import` | Poll every 30 seconds for up to 900 seconds, then import completed results (alias: `--wait-and-import`) |
 | `--profile` | Use specific profile |
 
 ### nlm research status
@@ -384,19 +399,23 @@ nlm research import <notebook-id> <task-id> [OPTIONS]
 | Option | Description |
 |--------|-------------|
 | `--indices` | Comma-separated indices of sources to import (default: all) |
+| `--cited-only` | Import only sources cited by the research report (overrides `--indices`) |
+| `--timeout` | Import timeout in seconds (default: 300) |
 | `--profile` | Use specific profile |
 
 ---
 
 ## Generation Commands
 
-All generation commands share these common options:
+All generation commands share `--confirm`, `--source-ids`, and `--profile`.
+The `--language` option is available for audio, report, slides, infographic,
+video, and data-table.
 
 | Option | Short | Description |
 |--------|-------|-------------|
 | `--confirm` | `-y` | **Required** to execute generation |
 | `--source-ids` | | Limit to specific sources (comma-separated) |
-| `--language` | | BCP-47 language code (en, es, fr, de, ja) |
+| `--language` | | BCP-47 language code where supported, including regional locales such as `es-419` |
 | `--profile` | `-p` | Use specific profile |
 
 ### nlm audio create
@@ -412,6 +431,10 @@ nlm audio create <notebook-id> [OPTIONS]
 | `--format` | `deep_dive`, `brief`, `critique`, `debate` | `deep_dive` |
 | `--length` | `short`, `default`, `long` | `default` |
 | `--focus` | Focus text/topic | |
+
+For audio, regional locales can affect the voice accent. Gemini Notebook has been
+observed using `es`/`es-ES` for Spain Spanish and `es-US`/`es-419` for
+Latin-American Spanish. `NOTEBOOKLM_HL` can set the regional default.
 
 ### nlm report create
 
@@ -465,13 +488,7 @@ nlm mindmap create <notebook-id> [OPTIONS]
 |--------|-------------|
 | `--title` | Display title for the mind map |
 
-### nlm mindmap list
-
-List existing mind maps.
-
-```bash
-nlm mindmap list <notebook-id> [OPTIONS]
-```
+List mind maps through `nlm studio status <notebook-id>`.
 
 ### nlm slides create
 
@@ -483,9 +500,20 @@ nlm slides create <notebook-id> [OPTIONS]
 
 | Option | Values | Default |
 |--------|--------|---------|
-| `--format` | `detailed`, `presenter` | `detailed` |
+| `--format` | `detailed_deck`, `presenter_slides` | `detailed_deck` |
 | `--length` | `short`, `default` | `default` |
 | `--focus` | Focus text/topic | |
+
+### nlm slides revise
+
+Revise one or more slides and create a new deck.
+
+```bash
+nlm slides revise <artifact-id> --slide "1 Make the title larger" --confirm
+```
+
+`--slide` is repeatable and uses `"<1-based slide number> <instruction>"`.
+The original deck is unchanged.
 
 ### nlm infographic create
 
@@ -499,6 +527,7 @@ nlm infographic create <notebook-id> [OPTIONS]
 |--------|--------|---------|
 | `--orientation` | `landscape`, `portrait`, `square` | `landscape` |
 | `--detail` | `concise`, `standard`, `detailed` | `standard` |
+| `--style` | `auto_select`, `sketch_note`, `professional`, `bento_grid`, `editorial`, `instructional`, `bricks`, `clay`, `anime`, `kawaii`, `scientific` | `auto_select` |
 | `--focus` | Focus text/topic | |
 
 ### nlm video create
@@ -511,10 +540,16 @@ nlm video create <notebook-id> [OPTIONS]
 
 | Option | Values | Default |
 |--------|--------|---------|
-| `--format` | `explainer`, `brief`, `cinematic` | `explainer` |
-| `--style` | `auto_select`, `custom`, `classic`, `whiteboard`, `kawaii`, `anime`, `watercolor`, `retro_print`, `heritage`, `paper_craft` | `auto_select` |
+| `--format` | `explainer`, `brief`, `cinematic`, `short` | `explainer` |
+| `--style` | `auto_select`, `custom`, `classic`, `whiteboard`, `kawaii`, `anime`, `watercolor`, `retro_print`, `heritage`, `paper_craft` (not for cinematic/short) | `auto_select` |
 | `--style-prompt` | Custom visual style text (requires `--style custom`, or implies it when `--style` omitted) | |
 | `--focus` | Focus text/topic | |
+
+`short` produces a ~60s vertical video with no visual style picker. Non-English
+output is best-effort: `--language` adds an explicit language requirement to the
+focus prompt because the captured Short RPC uses a null language slot.
+
+List generated videos with `nlm video list <notebook-id>`.
 
 ### nlm data-table create
 
@@ -542,7 +577,18 @@ nlm studio status <notebook-id> [OPTIONS]
 |--------|-------------|
 | `--json` | Output as JSON |
 | `--full` | Show all details |
+| `--artifact-id` | Return one artifact by ID |
+| `--limit` | Maximum artifacts to return (1-100) |
+| `--offset` | Skip artifacts for pagination |
+| `--mcp-compatible` | Return the lean, paginated MCP envelope as JSON |
 | `--profile` | Use specific profile |
+
+`--json --full` includes `source_ids`, allowing each artifact to be traced to
+the source set used to generate it.
+
+The legacy `--json` shape remains a plain list and now contains both `id` and
+`artifact_id`. MCP-compatible output defaults to 20 lean artifacts; combine it
+with `--full` only when prompts or other rich fields are needed.
 
 ### nlm studio delete
 
@@ -568,13 +614,14 @@ Download generated artifacts to local files.
 nlm download <type> <notebook-id> [OPTIONS]
 ```
 
-**Available types:** `audio`, `video`, `report`, `mind-map`, `slides`, `infographic`, `quiz`, `flashcards`, `data-table`
+**Available types:** `audio`, `video`, `report`, `mind-map`, `slide-deck`,
+`infographic`, `quiz`, `flashcards`, `data-table`
 
 | Option | Description |
 |--------|-------------|
 | `--id` | Specific artifact ID (uses latest if omitted) |
 | `--format` | Output format for quiz/flashcards: `json`, `markdown`, `html` |
-| `--profile` | Use specific profile |
+| `--output` | Output file path |
 
 **Examples:**
 ```bash
@@ -583,6 +630,29 @@ nlm download video <nb-id> --output video.mp4
 nlm download report <nb-id> --output report.md
 nlm download quiz <nb-id> --output quiz.html --format html
 nlm download flashcards <nb-id> --output cards.json --format json
+```
+
+### nlm download all
+
+Download every completed artifact of a notebook — or every notebook — into
+per-notebook directories named after each notebook's title.
+
+```bash
+nlm download all <notebook-id> [OPTIONS]
+nlm download all --all-notebooks [OPTIONS]
+```
+
+| Option | Description |
+|--------|-------------|
+| `--output-dir`, `-d` | Base directory; a subdirectory per notebook is created inside |
+| `--types`, `-t` | Comma-separated artifact types to include (default: all) |
+| `--all-notebooks`, `-a` | Sweep every notebook in the account |
+| `--skip-existing` | Skip artifacts whose file already exists (incremental re-runs) |
+
+**Examples:**
+```bash
+nlm download all <nb-id> --output-dir ./exports
+nlm download all --all-notebooks --output-dir ./exports --skip-existing
 ```
 
 ---
@@ -594,10 +664,12 @@ nlm download flashcards <nb-id> --output cards.json --format json
 Export artifacts to Google Docs or Sheets.
 
 ```bash
-nlm export <type> <notebook-id> <artifact-id> [OPTIONS]
+nlm export to-docs <notebook-id> <artifact-id> [OPTIONS]    # Report -> Google Docs
+nlm export to-sheets <notebook-id> <artifact-id> [OPTIONS]  # Data Table -> Google Sheets
+nlm export artifact <notebook-id> <artifact-id> --type docs|sheets [OPTIONS]
 ```
 
-**Available types:** `docs`, `sheets`
+**Subcommands:** `to-docs`, `to-sheets`, `artifact --type docs|sheets`
 
 | Option | Description |
 |--------|-------------|
@@ -606,8 +678,8 @@ nlm export <type> <notebook-id> <artifact-id> [OPTIONS]
 
 **Examples:**
 ```bash
-nlm export sheets <nb-id> <artifact-id> --title "Data Table Export"
-nlm export docs <nb-id> <artifact-id> --title "My Report"
+nlm export to-sheets <nb-id> <artifact-id> --title "Data Table Export"
+nlm export to-docs <nb-id> <artifact-id> --title "My Report"
 ```
 
 ---
@@ -628,7 +700,7 @@ nlm share status <notebook-id> [OPTIONS]
 
 ### nlm share public
 
-Enable or disable public link sharing.
+Enable public link sharing. Disable it with `nlm share private <notebook-id>`.
 
 ```bash
 nlm share public <notebook-id> [OPTIONS]
@@ -636,13 +708,12 @@ nlm share public <notebook-id> [OPTIONS]
 
 | Option | Description |
 |--------|-------------|
-| `--off` | Disable public sharing (default: enable) |
 | `--profile` | Use specific profile |
 
 **Examples:**
 ```bash
 nlm share public <nb-id>         # Enable public link
-nlm share public <nb-id> --off   # Disable public link
+nlm share private <nb-id>        # Disable public link
 ```
 
 ### nlm share invite
@@ -757,13 +828,73 @@ nlm chat configure <notebook-id> [OPTIONS]
 | `--response-length` | `default`, `longer`, `shorter` |
 | `--profile` | Use specific profile |
 
+### nlm chats list
+
+List chat sessions for a notebook (alias: `nlm chat list`).
+
+```bash
+nlm chats list <notebook-id> [OPTIONS]
+```
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--limit` | `-l` | Max chat sessions to display (default: 20) |
+| `--json` | | Output raw JSON |
+| `--profile` | `-p` | Use specific profile |
+
+### nlm chats get
+
+Retrieve the full Q&A transcript for a chat session. Transcripts are fetched
+from the Gemini Notebook server, so past chats are visible even from a fresh CLI
+invocation — not just chats made earlier in the same process.
+
+```bash
+nlm chats get <notebook-id> [conversation-id] [OPTIONS]
+```
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| (positional) | | Conversation ID; defaults to the notebook's latest session |
+| `--json` | | Output raw JSON |
+| `--profile` | `-p` | Use specific profile |
+
+### nlm chats export
+
+Export a chat transcript to Markdown or JSON.
+
+```bash
+nlm chats export <notebook-id> [OPTIONS]
+```
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--conversation-id` | `-c` | Conversation ID; defaults to the latest session |
+| `--format` | `-f` | `md` (default) or `json` |
+| `--output` | `-o` | File path to save the export (prints to stdout if omitted) |
+| `--profile` | `-p` | Use specific profile |
+
+### nlm chats to-note
+
+Save a chat turn or the full chat session as a Note in the notebook.
+
+```bash
+nlm chats to-note <notebook-id> <conversation-id> [OPTIONS]
+```
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--turn` | `-t` | 1-indexed turn to save (default: entire chat) |
+| `--title` | | Note title |
+| `--json` | | Output raw JSON |
+| `--profile` | `-p` | Use specific profile |
+
 ---
 
 ## Alias Commands
 
 ### nlm alias set
 
-Create or update an alias for a NotebookLM ID.
+Create or update an alias for a Gemini Notebook ID.
 
 ```bash
 nlm alias set <name> <id>
@@ -834,7 +965,7 @@ nlm config set <key> <value>
 | `output.format` | `table` | Default output format (table, json) |
 | `output.color` | `true` | Enable colored output |
 | `output.short_ids` | `true` | Show shortened IDs |
-| `auth.browser` | `auto` | Preferred browser for login (auto, chrome, arc, brave, edge, chromium, vivaldi, opera). Falls back to auto if preferred browser is not found. |
+| `auth.browser` | `auto` | Preferred browser for login (auto, chrome, arc, brave, edge, chromium, firefox, vivaldi, opera). Falls back to auto if preferred browser is not found. |
 | `auth.default_profile` | `default` | Profile to use when `--profile` not specified. **Note:** The MCP Server always uses the active default profile. Changing this setting will instantaneously switch the MCP server's Google account. |
 
 **Example**: Set default profile to avoid typing `--profile` for every command:
@@ -846,3 +977,97 @@ nlm login switch work
 # Alternative method (via config)
 nlm config set auth.default_profile work
 ```
+
+---
+
+## Organization and Automation
+
+### Labels
+
+```bash
+nlm label auto <notebook-id>
+nlm label list <notebook-id>
+nlm label reorganize <notebook-id> --confirm
+nlm label create <notebook-id> "Research"
+nlm label rename <notebook-id> <label-id> "New Name"
+nlm label emoji <notebook-id> <label-id> "📚"
+nlm label move <notebook-id> <source-id> <label-id>
+nlm label delete <notebook-id> <label-id> --confirm
+```
+
+Full reorganization and deletion are destructive label operations. Sources are
+preserved when labels are deleted.
+
+### Tags and cross-notebook query
+
+```bash
+nlm tag add <notebook-id> --tags "ai,research"
+nlm tag remove <notebook-id> --tags "ai"
+nlm tag list
+nlm tag select "ai research"
+nlm cross query "Compare approaches" --notebooks "id1,id2"
+nlm cross query "Summarize" --tags "ai,research"
+nlm cross query "Everything" --all
+```
+
+### Batch operations
+
+```bash
+nlm batch query "Summarize" --notebooks "id1,id2"
+nlm batch add-source "https://example.com" --notebooks "id1,id2"
+nlm batch create "Project A, Project B"
+nlm batch delete --notebooks "id1,id2" --confirm
+nlm batch studio audio --tags "research"
+```
+
+### Pipelines
+
+```bash
+nlm pipeline list
+nlm pipeline run ingest-and-podcast --notebook <id> --input-url "https://..."
+nlm pipeline run research-and-report --notebook <id> --input-url "https://..."
+nlm pipeline run multi-format --notebook <id>
+nlm pipeline create my-pipeline --file pipeline.yaml
+```
+
+Run `nlm <family> <command> --help` for selector and profile options.
+
+---
+
+## Setup, Skill, and Diagnostics
+
+MCP setup writes the configured server name `gemini-notebook-mcp`; the
+`notebooklm-mcp` executable remains unchanged for compatibility.
+
+```bash
+nlm setup list
+nlm setup add <tool>
+nlm setup remove <tool>
+
+# Claude Desktop profile selection
+nlm setup add claude-desktop --profile regular|3p|both
+nlm setup remove claude-desktop --profile regular|3p|both
+
+nlm skill list
+nlm skill install <tool> [--level user|project]
+nlm skill update [tool]
+nlm skill uninstall <tool>
+nlm skill show
+
+nlm doctor
+nlm doctor --verbose
+```
+
+Claude Desktop setup only targets detected profiles. If both regular and
+Relay AI/3P profiles exist, the command prompts for a selection unless
+`--profile` is supplied; if no profile exists, nothing is created. Fully quit
+the selected Claude profile before adding or removing MCP configuration. The
+CLI refuses to write while the active Claude executable is running, including
+when Relay AI launched it. User-level skill installation likewise requires
+the target tool to be detected; use `--level project` for an intentional
+project-local install.
+
+Verb-first aliases are also available for common operations, including
+`nlm create`, `nlm list`, `nlm get`, `nlm add`, `nlm rename`, `nlm delete`,
+`nlm status`, `nlm describe`, `nlm query`, `nlm sync`, `nlm download`,
+`nlm install skill`, and `nlm update skill`.
