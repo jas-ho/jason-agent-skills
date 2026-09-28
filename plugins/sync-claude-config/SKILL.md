@@ -53,18 +53,6 @@ For changed files, use `git diff` to see what changed. Analyze:
 
 Group related changes together.
 
-### Skip Noise Changes
-
-**`plugins/known_marketplaces.json`**: Only commit if plugins were added/removed. Skip if only `lastUpdated` timestamps changed.
-
-To check if changes are substantive:
-
-```bash
-git -C ~/.claude diff plugins/known_marketplaces.json | grep -v '"lastUpdated"' | grep '^[+-]' | grep -v '^[+-]{' | grep -v '^[+-]}' | grep -v '^[+-]\s*$' | grep -v '^---' | grep -v '^+++'
-```
-
-If this outputs nothing, the changes are timestamp-only - skip committing this file.
-
 ### Reconcile derived and per-host config (always, before committing)
 
 After all CLAUDE.md edits are final, run the reconciler. It regenerates `~/.codex/AGENTS.md` from the `[codex.agents_md]` section list in `~/.claude/agent-config.toml`, reconciles the shared workflow catalog and generated skill/command entrypoints for Claude Code, Codex and OMP, installs the repo's git hooks (pre-commit: gitleaks + no outside-repo symlinks), exports the live settings.json to the tracked `settings.<kernel>.json` snapshot, and reports settings parity drift against the other host:
