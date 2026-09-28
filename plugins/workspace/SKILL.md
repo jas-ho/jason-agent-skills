@@ -12,7 +12,7 @@ Use the installed `workspace` CLI on Jason's Mac; it owns desktop creation, app 
 - Create automatically when a substantial task clearly deserves its own working context. Ask only when separation is ambiguous; ordinary subtasks stay together. Creating a desktop does not authorize launching another agent. Background workers should leave desktop setup to the originating conversation unless explicitly delegated.
 - Read `workspace list --json` first. Reuse a desktop whose task association is established in the conversation, such as one created here or identified by the user; do not infer ownership from a matching name. Reuse means reporting its ID without switching or creating more windows.
 - Prepare and return by default. Announce setup briefly because it visits the new desktop. Use `--stay` or `switch` only when the user wants to move there. Run mutations sequentially and respect manual desktop changes; do not switch back to repair a skipped return.
-- Name alone works. Add an existing project directory, relevant URLs or an existing vault-relative note when known; do not create folders or notes just to populate a desktop. App choices and layout belong in the CLI recipe, not this skill.
+- Name alone works. Add an existing project directory, relevant URLs or an existing vault-relative note when known; do not create folders or notes just to populate a desktop. Name alone opens the recipe's core apps (by default only the terminal); add `--full` when the task needs the extra apps too (by default browser and notes) (`--url` and `--note` open the app they need). Other app choices and layout belong in the CLI recipe, not this skill.
 
 ## Execute
 
