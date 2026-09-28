@@ -269,7 +269,7 @@ Convert start times to relative age:
 
 Separate Claude processes into:
 1. **Sessions**: Main `claude` processes attached to terminals (user sessions)
-2. **Infrastructure**: MCP servers (pyright, workspace-mcp, context7-mcp, chroma-mcp), worker processes
+2. **Infrastructure**: MCP servers (pyright, workspace-mcp, qmd, beeper, exa), worker processes
 
 This helps users understand why "Claude" shows high memory - it's not just sessions.
 

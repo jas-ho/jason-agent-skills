@@ -28,7 +28,7 @@ A new adapter is unfinished until its success, CLI failure, malformed/truncated 
 
 ## Mac scheduling
 
-Use the existing `~/bin/job-run` convention; read `~/bin/specs/job-run/README.md` and a current working plist such as `com.jason.garmin-pull.plist`. The runner owns freshness, locking, logs and timeout. Avoid duplicating healthchecks UUIDs, mkdir locks or log paths in new wrappers.
+Use the existing `~/bin/job-run` convention; read `~/bin/specs/job-run/README.md` and a current working plist such as `com.jason.health-sync.plist`. The runner owns freshness, locking, logs and timeout. Avoid duplicating healthchecks UUIDs, mkdir locks or log paths in new wrappers.
 
 - Plist: `StartInterval` 1800, `RunAtLoad` true; `ProgramArguments` uses the resolved home path to `job-run <name> --every <duration> [--timeout <duration>] [--verify <path>] -- <command...>`.
 - Register with `job-register <name> --max-age <duration>` using suitable schedule slack, then validate `plutil -lint` and bootstrap through `launchctl`.
