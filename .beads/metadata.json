@@ -1,7 +1,0 @@
-{
-  "database": "dolt",
-  "backend": "dolt",
-  "dolt_mode": "server",
-  "dolt_database": "jas",
-  "project_id": "c8d9b066-cb89-421f-b2e5-603c58df5329"
-}
