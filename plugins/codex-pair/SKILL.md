@@ -103,8 +103,9 @@ contracted implementer.
    presence/absence, not exact formatting — leave design room), syntax checks,
    linters. **Commit spec + gate before the counterpart starts.**
 3. Prompt: "Implement `docs/specs/<name>.md`. Iterate until `bash tests/checks.sh`
-   exits 0. Do NOT modify anything under tests/ — if a test seems wrong,
-   satisfy it and flag it in your summary. Do not git-commit. Keep diffs
+   exits 0. Do NOT modify anything under tests/. If a test contradicts
+   the spec's general behavior, implement the general behavior, leave that
+   test failing and report it; never add special cases to make it pass. Do not git-commit. Keep diffs
    minimal, match each file's style. Summarize design decisions at the end."
 4. Run with the counterpart CLI in the repository using scoped write
    permissions. The committed gate + explicit stop condition is the headless
@@ -113,7 +114,8 @@ contracted implementer.
 5. On return: re-run the checks yourself (don't trust the claim). Then review
    the **diff**, not the counterpart's summary (redaction rule in reverse — read the
    summary only after forming your own view). Expect the escapes to be in the
-   gap between "asserted" and "well-formed": formatting, races, UX feel.
+   gap between "asserted" and "well-formed": formatting, races, UX feel,
+   and special cases keyed to test values (usually a wrong test or spec).
 6. Fix taste-level issues yourself, verify end-to-end (browser/manual where
    relevant), commit with authorship noted ("Implemented by the counterpart against
    `docs/specs/<name>.md`; reviewed and touched up").
