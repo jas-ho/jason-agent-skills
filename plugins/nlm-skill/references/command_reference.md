@@ -6,20 +6,21 @@ This document contains the complete command signatures and all available options
 
 1. [Global Options](#global-options)
 2. [Authentication](#authentication)
-3. [Notebook Commands](#notebook-commands)
-4. [Source Commands](#source-commands)
-5. [Research Commands](#research-commands)
-6. [Generation Commands](#generation-commands)
-7. [Studio Commands](#studio-commands)
-8. [Download Commands](#download-commands)
-9. [Export Commands](#export-commands)
-10. [Sharing Commands](#sharing-commands)
-11. [Note Commands](#note-commands)
-12. [Chat Commands](#chat-commands)
-13. [Alias Commands](#alias-commands)
-14. [Config Commands](#config-commands)
-15. [Organization and Automation](#organization-and-automation)
-16. [Setup, Skill, and Diagnostics](#setup-skill-and-diagnostics)
+3. [Plan Usage](#plan-usage)
+4. [Notebook Commands](#notebook-commands)
+5. [Source Commands](#source-commands)
+6. [Research Commands](#research-commands)
+7. [Generation Commands](#generation-commands)
+8. [Studio Commands](#studio-commands)
+9. [Download Commands](#download-commands)
+10. [Export Commands](#export-commands)
+11. [Sharing Commands](#sharing-commands)
+12. [Note Commands](#note-commands)
+13. [Chat Commands](#chat-commands)
+14. [Alias Commands](#alias-commands)
+15. [Config Commands](#config-commands)
+16. [Organization and Automation](#organization-and-automation)
+17. [Setup, Skill, and Diagnostics](#setup-skill-and-diagnostics)
 
 ---
 
@@ -54,7 +55,7 @@ nlm login [OPTIONS]
 | `--manual` | `-m` | Import cookies from file |
 | `--file` | `-f` | Cookie file path for manual mode |
 | `--force` | | Replace credentials even if the detected account differs |
-| `--clear` | | Clear stored browser/profile state before login |
+| `--clear` | | Delete the profile's browser data before login, to switch Google accounts (always clears and re-authenticates, even if the current session is valid) |
 | `--wsl` | | Use the WSL/Windows-browser authentication path |
 
 **Note**: Each profile gets its own isolated Chrome session, so you can be logged into multiple Google accounts simultaneously.
@@ -101,6 +102,72 @@ nlm login switch work
 # Output: ✓ Switched default profile to work
 #         Account: jsmith@company.com
 ```
+
+### nlm auth refresh
+
+Refresh a session non-interactively so Google reissues its short-lived
+cookies. Runs a headless-browser pass against the saved profile — no user
+interaction — which keeps an unattended session (cron/launchd) alive without
+an interactive `nlm login`. Exits non-zero if the refresh fails.
+
+```bash
+nlm auth refresh
+nlm auth refresh --profile work
+```
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--profile` | `-p` | Profile to refresh (default: the configured default profile) |
+
+Refuses when `NOTEBOOKLM_COOKIES` is set (that value overrides saved
+credentials) and when `NOTEBOOKLM_DISABLE_HEADLESS_REFRESH=1` is set.
+
+---
+
+## Plan Usage
+
+### nlm usage
+
+Show the account's measured Gemini Notebook compute usage across the rolling
+and weekly allowance windows, including reset times and the subscription tier
+when available.
+
+```bash
+nlm usage [OPTIONS]
+```
+
+| Option | Description |
+|--------|-------------|
+| `--json` | Output machine-readable JSON; reset timestamps are ISO 8601 UTC |
+| `--profile`, `-p` | Check a saved profile without changing the default; a missing profile errors instead of falling back |
+
+The human-readable table renders reset timestamps in the local timezone. The
+JSON response has this shape:
+
+```json
+{
+  "windows": [
+    {
+      "window": "rolling",
+      "percent_used": 0.0,
+      "percent_remaining": 100,
+      "resets_at": "2026-09-12T22:44:21+00:00"
+    },
+    {
+      "window": "weekly",
+      "percent_used": 8.7,
+      "percent_remaining": 91.3,
+      "resets_at": "2026-09-19T17:44:21+00:00"
+    }
+  ],
+  "tier": "NOTEBOOKLM_TIER_PRO_CONSUMER_USER"
+}
+```
+
+Use the window name rather than list position. The backend does not guarantee
+the order of its raw entries, while the CLI and service return `rolling` first
+and `weekly` second. If authentication has expired, refresh with `nlm auth
+refresh` or `nlm login`; an auth failure is not an exhausted quota.
 
 ---
 
@@ -615,7 +682,7 @@ nlm download <type> <notebook-id> [OPTIONS]
 ```
 
 **Available types:** `audio`, `video`, `report`, `mind-map`, `slide-deck`,
-`infographic`, `quiz`, `flashcards`, `data-table`
+`infographic`, `quiz`, `flashcards`, `data-table`, `file`
 
 | Option | Description |
 |--------|-------------|
@@ -625,11 +692,22 @@ nlm download <type> <notebook-id> [OPTIONS]
 
 **Examples:**
 ```bash
-nlm download audio <nb-id> --output podcast.mp3
+nlm download audio <nb-id> --output podcast.m4a
 nlm download video <nb-id> --output video.mp4
 nlm download report <nb-id> --output report.md
+nlm download file <nb-id> --id <artifact-id> --output export.bin
 nlm download quiz <nb-id> --output quiz.html --format html
 nlm download flashcards <nb-id> --output cards.json --format json
+```
+
+Audio arrives as AAC in an MP4 container, so it needs a `.m4a` or `.mp4`
+suffix; `.mp3` and other mismatched extensions are rejected rather than
+written with bytes that contradict the name. Transcode afterwards if you
+need MP3:
+
+```bash
+nlm download audio <notebook> --id <artifact-id> --output raw.m4a
+ffmpeg -i raw.m4a -acodec libmp3lame -q:a 2 podcast.mp3
 ```
 
 ### nlm download all
@@ -830,7 +908,7 @@ nlm chat configure <notebook-id> [OPTIONS]
 
 ### nlm chats list
 
-List chat sessions for a notebook (alias: `nlm chat list`).
+List chat sessions for a notebook.
 
 ```bash
 nlm chats list <notebook-id> [OPTIONS]
@@ -965,7 +1043,8 @@ nlm config set <key> <value>
 | `output.format` | `table` | Default output format (table, json) |
 | `output.color` | `true` | Enable colored output |
 | `output.short_ids` | `true` | Show shortened IDs |
-| `auth.browser` | `auto` | Preferred browser for login (auto, chrome, arc, brave, edge, chromium, firefox, vivaldi, opera). Falls back to auto if preferred browser is not found. |
+| `auth.browser` | `auto` | Preferred browser for login (auto, chrome, arc, dia, comet, brave, edge, chromium, firefox, vivaldi, opera). Falls back to auto if a preferred named browser is not found. |
+| `auth.browser_path` | empty | Explicit Chromium-compatible executable path. Overrides named discovery; `NLM_BROWSER_PATH` provides the environment override. |
 | `auth.default_profile` | `default` | Profile to use when `--profile` not specified. **Note:** The MCP Server always uses the active default profile. Changing this setting will instantaneously switch the MCP server's Google account. |
 
 **Example**: Set default profile to avoid typing `--profile` for every command:

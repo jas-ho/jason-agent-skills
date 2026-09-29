@@ -360,7 +360,7 @@ nlm note delete <notebook-id> <note-id> --confirm
 nlm studio status <notebook-id>
 
 # Step 2: Download audio podcast
-nlm download audio <notebook-id> --output ./downloads/podcast.mp3
+nlm download audio <notebook-id> --output ./downloads/podcast.m4a
 
 # Step 3: Download report
 nlm download report <notebook-id> --output ./downloads/report.md
@@ -531,7 +531,9 @@ To avoid hitting API rate limits:
 | Query operations | 2 seconds |
 | Batch operations | 10 seconds |
 
-**Daily limits (free tier):** ~50 queries/operations per day.
+**Measured usage windows:** Chat and Studio usage is metered as compute against
+a rolling window (about five hours) and a weekly cap. Run `nlm usage` (MCP:
+`usage_get`) before quota-limited work to see percentages and reset timestamps.
 
 ---
 
