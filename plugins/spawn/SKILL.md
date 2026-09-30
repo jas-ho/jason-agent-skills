@@ -162,7 +162,9 @@ unconditional requirement; `prompt` is required unless `agent` is `"none"` or
 The script's compatibility default is `agent: "claude"`, but this skill always
 sets `agent` to the resolved current/requested host. Other defaults: `dir`
 current working directory, `branch` `false`, `resume`/`model` unset (CLI picks
-its default model), `remote` `false`.
+its default model), `remote` `false`, `permission_mode` unset (claude only:
+`default`, `acceptEdits`, `plan` or `auto`; set it only when carrying a known
+mode over, as session-teleport does).
 
 ## Remote Control
 
@@ -223,7 +225,8 @@ confirms it on their phone or the pane's footer) so a wrong call is caught fast.
   shell, so popups and `run-shell` in a server born from an ssh one-liner
   still find `~/bin` tools; cairn 2026-09-09).
   It never spawns across machines — run it on the machine whose tmux you
-  want the windows in.
+  want the windows in. To move the current session to the other host, use
+  the `session-teleport` skill (it calls this launcher over there).
 - If tmux isn't installed or can't start, relay the script's stderr and give
   the user the composed brief(s) instead, so the handoff isn't lost.
 - Don't read the spawned sessions' state by scraping their panes afterwards;

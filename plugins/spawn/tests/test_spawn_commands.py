@@ -98,6 +98,9 @@ class CommandTests(unittest.TestCase):
                         "omp": "--fork" if branch else "--resume",
                     }[agent]
                     self.assertIn(expected, args)
+                    if agent == "codex" and not branch:
+                        # the task dir wins over the thread's recorded cwd
+                        self.assertIn('tui.resume_cwd="current"', args)
 
     def test_omp_absolute_path_is_single_argument(self):
         path = str(self.work / "session ' with spaces.jsonl")
@@ -143,6 +146,26 @@ class CommandTests(unittest.TestCase):
                     self.assertRaises(ValueError),
                 ):
                     spawn.build_command(agent, False, identity, None, None)
+
+    def test_permission_mode(self):
+        command = spawn.build_command("claude", False, SID, None, None, None, "auto")
+        self.assertIn("--permission-mode auto", command)
+        with self.assertRaises(ValueError):
+            spawn.build_command(
+                "claude", False, SID, None, None, None, "bypassPermissions"
+            )
+        errors = spawn.validate(
+            [
+                {
+                    "name": "x",
+                    "agent": "codex",
+                    "resume": SID,
+                    "dir": "/",
+                    "permission_mode": "auto",
+                }
+            ]
+        )
+        self.assertTrue(any("permission_mode" in e for e in errors))
 
     def test_nonclaude_remote_rejected(self):
         for agent in ("codex", "omp"):

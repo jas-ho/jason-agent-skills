@@ -26,7 +26,8 @@ Manifest: a JSON array of task objects, each:
       "branch": false,                # fork a session (shared history)
       "resume": "<session-id>",       # reopen this specific old session
       "model":  "<model>",            # optional override (claude --model / codex -m)
-      "remote": false                 # claude only: enable Remote Control (phone/web)
+      "remote": false,                # claude only: enable Remote Control (phone/web)
+      "permission_mode": "auto"       # claude only: default | acceptEdits | plan | auto
     }
 
 Launch line per (agent x branch x resume):
@@ -36,7 +37,7 @@ Launch line per (agent x branch x resume):
     claude, resume+branch  : claude --resume <id> --fork-session [-- "$prompt"]
     codex,  fresh          : codex -- "$prompt"
     codex,  branch         : codex fork $CODEX_THREAD_ID -- "$prompt"  (required exact ID)
-    codex,  resume         : codex resume <id> [-- "$prompt"]
+    codex,  resume         : codex resume -c tui.resume_cwd="current" <id> [-- "$prompt"]
     codex,  resume+branch  : codex fork <id> [-- "$prompt"]
     omp,    fresh          : omp [--model <model>] -- "$prompt"
     omp,    resume         : omp --resume <exact-id-or-path> [-- "$prompt"]
@@ -81,6 +82,9 @@ VALID_AGENTS = ("claude", "codex", "omp", "none")
 UUID_RE = re.compile(
     r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.IGNORECASE
 )
+
+# Modes a launch may request; bypassPermissions is deliberately not launchable here.
+PERMISSION_MODES = ("default", "acceptEdits", "plan", "auto")
 
 # Model ids/aliases: letters, digits, then dots/underscores/slashes/colons/dashes.
 MODEL_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/:-]*$")
@@ -198,6 +202,11 @@ def validate(tasks: list) -> list[str]:
                 errors.append(
                     f"{where}: remote is claude-only; this launcher has no per-session remote flag for {agent}"
                 )
+        mode = task.get("permission_mode")
+        if mode is not None and (agent != "claude" or mode not in PERMISSION_MODES):
+            errors.append(
+                f"{where}: 'permission_mode' is claude-only and one of {PERMISSION_MODES}, got {mode!r}"
+            )
         prompt = task.get("prompt")
         if agent != "none" and not resume and (not prompt or not str(prompt).strip()):
             errors.append(
@@ -238,6 +247,7 @@ def build_command(
     model: str | None,
     promptfile: str | None,
     remote_name: str | None = None,
+    permission_mode: str | None = None,
 ) -> str:
     """The bash command string the new pane runs."""
     if agent not in ("claude", "codex", "omp"):
@@ -278,6 +288,10 @@ def build_command(
         # claude.ai session list. Both forms verified live against the CLI.
         if remote_name:
             opt += f" --remote-control={shlex.quote(remote_name)}"
+        if permission_mode:
+            if permission_mode not in PERMISSION_MODES:
+                raise ValueError(f"unsupported permission mode: {permission_mode}")
+            opt += f" --permission-mode {shlex.quote(permission_mode)}"
         if resume:
             fork = " --fork-session" if branch else ""
             launch = f"claude{opt} --resume {shlex.quote(resume)}{fork}{arg}"
@@ -287,6 +301,11 @@ def build_command(
         opt = f" -m {shlex.quote(model)}" if model else ""
         if resume:
             verb = "fork" if branch else "resume"
+            # The task's dir is authoritative: without this, resuming a thread whose
+            # recorded cwd differs stops at a "Choose working directory" prompt
+            # (codex-cli 0.155.1, verified on cairn 2026-09-30).
+            if not branch:
+                opt += " -c " + shlex.quote('tui.resume_cwd="current"')
             launch = f"codex {verb}{opt} {shlex.quote(resume)}{arg}"
         else:
             launch = f"codex{opt}{arg}"
@@ -345,7 +364,15 @@ def spawn(task: dict) -> dict:
         cmd_args = [
             "bash",
             "-c",
-            build_command(agent, branch, resume, model, promptfile, remote_name),
+            build_command(
+                agent,
+                branch,
+                resume,
+                model,
+                promptfile,
+                remote_name,
+                task.get("permission_mode"),
+            ),
         ]
 
     fmt = "#{session_name}:#{window_index}|#{pane_id}"
