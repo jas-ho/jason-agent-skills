@@ -27,8 +27,17 @@ Manifest: a JSON array of task objects, each:
       "resume": "<session-id>",       # reopen this specific old session
       "model":  "<model>",            # optional override (claude --model / codex -m)
       "remote": false,                # claude only: enable Remote Control (phone/web)
-      "permission_mode": "auto"       # claude only: default | acceptEdits | plan | auto
+      "permission_mode": "auto",      # claude only: default | acceptEdits | plan | auto
+      "mode":   "thinking" | "delegated"  # default "thinking"; see below
     }
+
+Naming: a claude fresh/branch launch gets `-n "<session>/<name>"`, so the Claude
+title is `<folder-slug>/<task>` and `claude --resume <slug>` finds it. A plain
+resume keeps the old session's title.
+
+Mode: "thinking" windows go to the default tmux server. "delegated" windows go
+to a separate server (`tmux -L delegated`) that none of the default-server
+tooling lists; attach deliberately with `tmux -L delegated attach -t <session>`.
 
 Launch line per (agent x branch x resume):
     claude, fresh          : claude -- "$prompt"
@@ -45,7 +54,7 @@ Launch line per (agent x branch x resume):
     none                   : plain shell in the directory (no agent launched)
 
 Remote Control (claude only): with "remote": true, the launch line gains
-`--remote-control=<window-name>` (the =name form binds the value so the flag's
+`--remote-control=<session>/<name>` (the =name form binds the value so the flag's
 optional name slot can't swallow the positional prompt; the name becomes the
 label in the claude.ai session list). Requires a Pro/Max/Team/
 Enterprise login on api.anthropic.com; the session becomes reachable (transcript,
@@ -79,6 +88,9 @@ SHELL_COMMANDS = {"bash", "zsh", "sh", "fish", "dash"}
 
 VALID_AGENTS = ("claude", "codex", "omp", "none")
 
+# mode -> tmux socket name (-L); None is the default server.
+MODES = {"thinking": None, "delegated": "delegated"}
+
 UUID_RE = re.compile(
     r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.IGNORECASE
 )
@@ -97,11 +109,14 @@ def sanitize_session_name(name: str) -> str:
     return cleaned or "spawn"
 
 
-def tmux(*args: str) -> subprocess.CompletedProcess:
-    return subprocess.run(["tmux", *args], capture_output=True, text=True, check=False)
+def tmux(*args: str, server: str | None = None) -> subprocess.CompletedProcess:
+    sock = ["-L", server] if server else []
+    return subprocess.run(
+        ["tmux", *sock, *args], capture_output=True, text=True, check=False
+    )
 
 
-def login_shell_path_into_server() -> None:
+def login_shell_path_into_server(server: str | None = None) -> None:
     """Give the tmux server a login shell's PATH.
 
     A server created from a non-login command (an ssh one-liner, cron, systemd)
@@ -128,12 +143,17 @@ def login_shell_path_into_server() -> None:
     ]
     path = lines[-1].strip() if lines else ""
     if out.returncode == 0 and "/" in path:
-        tmux("set-environment", "-g", "PATH", path)
+        tmux("set-environment", "-g", "PATH", path, server=server)
 
 
-def session_exists(session: str) -> bool:
+def caller_server() -> str:
+    """Socket name of the tmux server this process runs in ('' outside tmux)."""
+    return os.path.basename(os.environ.get("TMUX", "").split(",")[0])
+
+
+def session_exists(session: str, server: str | None = None) -> bool:
     # '=' prefix forces exact match (plain -t does prefix matching).
-    return tmux("has-session", "-t", f"={session}").returncode == 0
+    return tmux("has-session", "-t", f"={session}", server=server).returncode == 0
 
 
 def validate(tasks: list) -> list[str]:
@@ -207,6 +227,11 @@ def validate(tasks: list) -> list[str]:
             errors.append(
                 f"{where}: 'permission_mode' is claude-only and one of {PERMISSION_MODES}, got {mode!r}"
             )
+        run_mode = task.get("mode", "thinking")
+        if not isinstance(run_mode, str) or run_mode not in MODES:
+            errors.append(
+                f"{where}: 'mode' must be one of {tuple(MODES)}, got {run_mode!r}"
+            )
         prompt = task.get("prompt")
         if agent != "none" and not resume and (not prompt or not str(prompt).strip()):
             errors.append(
@@ -248,6 +273,7 @@ def build_command(
     promptfile: str | None,
     remote_name: str | None = None,
     permission_mode: str | None = None,
+    title: str | None = None,
 ) -> str:
     """The bash command string the new pane runs."""
     if agent not in ("claude", "codex", "omp"):
@@ -280,6 +306,9 @@ def build_command(
     arg = ' -- "$prompt"' if promptfile else ""
     if agent == "claude":
         opt = f" --model {shlex.quote(model)}" if model else ""
+        # A plain resume keeps its old title; fresh and forked sessions are new.
+        if title and not (resume and not branch):
+            opt += f" -n {shlex.quote(title)}"
         # Remote Control: use the `--remote-control=<name>` form. The name slot
         # is OPTIONAL, so the space form `--remote-control <name>` is ambiguous
         # when the name is absent (swallows the positional prompt) or looks like
@@ -352,6 +381,13 @@ def spawn(task: dict) -> dict:
     resume = (task.get("resume") or "").strip() or None
     model = (task.get("model") or "").strip() or None
     remote = bool(task.get("remote"))
+    mode = task.get("mode", "thinking")
+    server = MODES[mode]
+    # Plain tmux follows $TMUX; a thinking spawn from inside a delegated pane
+    # must still land on the default server, not stay hidden.
+    if server is None and caller_server() == MODES["delegated"]:
+        server = "default"
+    title = f"{session}/{name}"
     cmd_args: list[str] = []
     promptfile = None
     if agent != "none":
@@ -360,7 +396,7 @@ def spawn(task: dict) -> dict:
             fd, promptfile = tempfile.mkstemp(prefix="spawn-prompt.")
             with os.fdopen(fd, "w") as fh:
                 fh.write(prompt)
-        remote_name = name if remote else None
+        remote_name = title if remote else None
         cmd_args = [
             "bash",
             "-c",
@@ -372,11 +408,12 @@ def spawn(task: dict) -> dict:
                 promptfile,
                 remote_name,
                 task.get("permission_mode"),
+                title=title,
             ),
         ]
 
     fmt = "#{session_name}:#{window_index}|#{pane_id}"
-    if session_exists(session):
+    if session_exists(session, server):
         # -d: append without switching focus (the user may be attached here).
         result = tmux(
             "new-window",
@@ -391,13 +428,14 @@ def spawn(task: dict) -> dict:
             "-F",
             fmt,
             *cmd_args,
+            server=server,
         )
     else:
         # Only a server this call brings into being gets its PATH set: an existing
         # server's global environment may be deliberate, whatever created it. The
         # check is best effort (a server created by someone else between the two
         # tmux calls would be treated as ours).
-        server_was_running = tmux("list-sessions").returncode == 0
+        server_was_running = tmux("list-sessions", server=server).returncode == 0
         result = tmux(
             "new-session",
             "-d",
@@ -411,9 +449,10 @@ def spawn(task: dict) -> dict:
             "-F",
             fmt,
             *cmd_args,
+            server=server,
         )
         if result.returncode == 0 and not server_was_running:
-            login_shell_path_into_server()
+            login_shell_path_into_server(server)
     if result.returncode != 0:
         if promptfile:
             print(f"Handoff brief retained at {promptfile}", file=sys.stderr)
@@ -426,13 +465,15 @@ def spawn(task: dict) -> dict:
     pin_results = [
         # Tag only the spawned pane: split panes in the same window may run
         # unrelated commands and must not inherit the agent classification.
-        tmux("set-option", "-p", "-t", pane_id, "@spawn-agent", agent),
-        tmux("set-option", "-w", "-t", target, "@custom-name", name),
-        tmux("set-option", "-w", "-t", target, "automatic-rename", "off"),
-        tmux("set-option", "-w", "-t", target, "allow-rename", "off"),
+        tmux("set-option", "-p", "-t", pane_id, "@spawn-agent", agent, server=server),
+        tmux("set-option", "-w", "-t", target, "@custom-name", name, server=server),
+        tmux(
+            "set-option", "-w", "-t", target, "automatic-rename", "off", server=server
+        ),
+        tmux("set-option", "-w", "-t", target, "allow-rename", "off", server=server),
         # Re-assert the name: a fast-starting agent could have retitled the
         # window in the gap between window creation and the option calls.
-        tmux("rename-window", "-t", target, name),
+        tmux("rename-window", "-t", target, name, server=server),
     ]
     if any(r.returncode != 0 for r in pin_results):
         print(
@@ -448,6 +489,9 @@ def spawn(task: dict) -> dict:
         "resume": resume,
         "model": model,
         "remote": remote,
+        "mode": mode,
+        "server": server,
+        "title": title if agent == "claude" else None,
         "dir": directory,
         "session": session,
         "target": target,
@@ -480,13 +524,16 @@ def check_status(entry: dict) -> str:
         entry["pane_id"],
         "-F",
         "#{pane_current_command}|#{pane_title}|#{pane_pid}",
+        server=entry["server"],
     )
     if result.returncode != 0:
         return "window closed — agent crashed at startup"
     command, title, pane_pid = result.stdout.strip().split("|", 2)
     if entry["agent"] == "none":
         return f"shell ready ({command})"
-    text = tmux("capture-pane", "-p", "-t", entry["pane_id"]).stdout
+    text = tmux(
+        "capture-pane", "-p", "-t", entry["pane_id"], server=entry["server"]
+    ).stdout
     # Failure marker first — a stale "Claude Code" pane title can outlive an
     # exited process and would otherwise mask a launch failure as "up".
     if "exited with status" in text:  # failure marker from build_command

@@ -27,8 +27,12 @@ off`) so task names survive Claude Code's auto-titling — full protection
 - Spawned panes are tagged with `@spawn-agent <agent>` — a pgrep hint for status
   tooling (e.g. agent-status-bar) to identify agent panes behind wrapper
   shells. Harmless where nothing reads it.
+- Claude titles: fresh and branch launches get `-n "<session>/<window>"`.
+- `"mode": "delegated"` puts the window on a separate tmux server
+  (`tmux -L delegated`) that default-server pickers and status bars don't list;
+  attach with `tmux -L delegated attach -t <session>`.
 - Remote Control (`"remote": true`, claude only) adds
-  `--remote-control=<window-name>` so the session is watchable/steerable from
+  `--remote-control=<session>/<window-name>` so the session is watchable/steerable from
   the phone. Off by
   default; see the "Remote Control" section of SKILL.md for the trade-offs and
   the calibrated decision rule. Asymmetry: codex's Remote Control is a machine

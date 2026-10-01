@@ -186,6 +186,79 @@ class CommandTests(unittest.TestCase):
         )
         self.assertTrue(errors)
 
+    def test_title_on_fresh_and_fork_not_plain_resume(self):
+        title = "my-proj/some-task"
+        with patch.dict(os.environ, {"CLAUDE_CODE_SESSION_ID": SID}):
+            for branch, resume, named in (
+                (False, None, True),
+                (True, None, True),
+                (True, SID, True),
+                (False, SID, False),
+            ):
+                with self.subTest(branch=branch, resume=resume):
+                    command = spawn.build_command(
+                        "claude", branch, resume, None, None, title, title=title
+                    )
+                    self.assertEqual(f"-n {title}" in command, named)
+                    self.assertIn(f"--remote-control={title}", command)
+        self.assertNotIn(
+            f"-n {title}",
+            spawn.build_command("codex", False, None, None, None, None, title=title),
+        )
+
+    def test_mode_validation(self):
+        base = {"name": "t", "agent": "none", "dir": str(self.work)}
+        self.assertEqual(spawn.validate([{**base, "mode": "delegated"}]), [])
+        self.assertEqual(spawn.validate([base]), [])
+        self.assertTrue(spawn.validate([{**base, "mode": "hidden"}]))
+        self.assertTrue(spawn.validate([{**base, "mode": []}]))
+
+    def test_delegated_uses_own_socket(self):
+        calls = []
+
+        def fake(*args, server=None):
+            calls.append((args, server))
+            out = "s:1|%1" if args[0] in ("new-window", "new-session") else ""
+            return subprocess.CompletedProcess(
+                args, 1 if args[0] == "has-session" else 0, out, ""
+            )
+
+        with (
+            patch.object(spawn, "tmux", fake),
+            patch.object(spawn, "login_shell_path_into_server"),
+        ):
+            entry = spawn.spawn(
+                {
+                    "name": "t",
+                    "agent": "none",
+                    "dir": str(self.work),
+                    "mode": "delegated",
+                }
+            )
+        self.assertEqual(entry["mode"], "delegated")
+        self.assertTrue(calls)
+        self.assertTrue(all(server == "delegated" for _, server in calls))
+
+    def test_thinking_from_delegated_pane_goes_to_default(self):
+        calls = []
+
+        def fake(*args, server=None):
+            calls.append(server)
+            out = "s:1|%1" if args[0] in ("new-window", "new-session") else ""
+            return subprocess.CompletedProcess(
+                args, 1 if args[0] == "has-session" else 0, out, ""
+            )
+
+        env = {"TMUX": "/private/tmp/tmux-501/delegated,1,0"}
+        with (
+            patch.object(spawn, "tmux", fake),
+            patch.object(spawn, "login_shell_path_into_server"),
+            patch.dict(os.environ, env),
+        ):
+            spawn.spawn({"name": "t", "agent": "none", "dir": str(self.work)})
+        self.assertTrue(calls)
+        self.assertTrue(all(server == "default" for server in calls))
+
 
 if __name__ == "__main__":
     unittest.main()

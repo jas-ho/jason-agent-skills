@@ -64,7 +64,15 @@ prompt per task, then call that script.
      session name = basename of dir; existing session gains windows, missing
      session is created (the same convention as claude-sessions and /start).
    - **Window name**: derive a short kebab-case task name (≤ 20 chars) per
-     task. The script pins it against auto-renaming.
+     task. The script pins it against auto-renaming, and fresh/branch Claude
+     launches get the title `<session>/<name>` (`claude -n`), so the session
+     is findable later with `claude --resume <session>` from that folder.
+   - **Mode**: `"thinking"` (default) for sessions the user steers live; they
+     go to the default tmux server. `"delegated"` for research/admin/
+     implementation work that runs to a decision point on its own; it goes to
+     a separate server (`tmux -L delegated`) that the user's pickers and status
+     bar don't show. Use delegated when the user says "delegate", "in the
+     background", or the task needs no live steering.
    - **Remote Control** (`"remote": true`, claude only): enables Claude Code's
      Remote Control so the user can watch and steer the spawned session from
      their phone or claude.ai/code. See "Remote Control" below for when to set
@@ -95,7 +103,9 @@ prompt per task, then call that script.
    - one line per window: name, agent, resolved directory, and the script's
      status (flag any window whose agent did not come up);
    - how to get there: `tmux switch-client -t <session>` (inside tmux) or
-     `tmux attach -t <session>` (outside);
+     `tmux attach -t <session>` (outside); for delegated windows
+     `tmux -L delegated attach -t <session>` (from a plain terminal, not
+     inside another tmux client);
    - when handing off hub work: a one-line division of labor — each spawned
      session owns its own open questions ("ask and answer there, not here"),
      and note anything that stays owned by this thread.
@@ -123,6 +133,9 @@ alone and include:
 - **Hub ownership** — what related work stays in the originating thread, so
   the child doesn't duplicate it.
 - **A clear first action** so the agent starts productively.
+- **Delegated mode only**: end the brief with "Work to a decision point
+  without waiting on the user; collect open questions into one bundle. When
+  you reach a decision point or are done, end with /park."
 
 Keep it focused — enough to act, not a transcript dump.
 
@@ -152,6 +165,11 @@ unconditional requirement; `prompt` is required unless `agent` is `"none"` or
     "dir": "/Users/me/Projects/that-sessions-project"
   },
   {
+    "name": "vendor-research",
+    "mode": "delegated",
+    "prompt": "<full standalone brief ending with the /park instruction>"
+  },
+  {
     "name": "watch-remotely",
     "remote": true,
     "prompt": "Long-running build; I'll check from my phone."
@@ -162,16 +180,16 @@ unconditional requirement; `prompt` is required unless `agent` is `"none"` or
 The script's compatibility default is `agent: "claude"`, but this skill always
 sets `agent` to the resolved current/requested host. Other defaults: `dir`
 current working directory, `branch` `false`, `resume`/`model` unset (CLI picks
-its default model), `remote` `false`, `permission_mode` unset (claude only:
-`default`, `acceptEdits`, `plan` or `auto`; set it only when carrying a known
-mode over, as session-teleport does).
+its default model), `remote` `false`, `mode` `"thinking"`, `permission_mode`
+unset (claude only: `default`, `acceptEdits`, `plan` or `auto`; set it only
+when carrying a known mode over, as session-teleport does).
 
 ## Remote Control
 
-`"remote": true` adds `--remote-control=<window-name>` to a claude launch line,
+`"remote": true` adds `--remote-control=<session>/<window-name>` to a claude launch line,
 enabling Claude Code's Remote Control: the session registers with claude.ai and
-becomes watchable/steerable from the user's phone or claude.ai/code (the window
-name is the label shown there). Verified working for fresh, resume, and branch
+becomes watchable/steerable from the user's phone or claude.ai/code (the
+session title is the label shown there). Verified working for fresh, resume, and branch
 spawns. Requires a Pro/Max/Team/Enterprise login on api.anthropic.com (not API
 keys, not Bedrock/Vertex/Foundry). Codex and OMP are rejected by this launcher. Codex Remote Control is a
 machine-wide daemon (`codex remote-control start`), not a per-session flag.
