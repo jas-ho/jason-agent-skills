@@ -1,6 +1,6 @@
 ---
 name: spawn
-description: Branch the current conversation into fresh agent sessions in tmux windows. Use when the user says "spawn a session/window for X", "peel this off into its own session", "branch/fork this into a new window", or wants to hand tasks to parallel interactive Claude/Codex/OMP sessions they can steer. Not for fire-and-forget background work; use the host's subagent mechanism for that.
+description: Branch the current conversation into fresh agent sessions in tmux windows. Use when the user says "spawn a session/window for X", "peel this off into its own session", "branch/fork this into a new window", or wants to hand tasks to parallel interactive Claude/Codex/OMP sessions they can steer. Also "delegate X" / "run X in the background in its own session": delegated mode runs it on a hidden tmux server until it parks. For a quick fire-and-forget subtask whose result comes back here, use the host's subagent mechanism instead.
 ---
 
 # Spawn agent sessions in new tmux windows
