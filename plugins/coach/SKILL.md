@@ -37,7 +37,7 @@ Complements the user's human coach (Simon, via GoalsWon: daily submissions, mont
 
 Surface relevant anchor values in your first response.
 
-First read today's daily note (step 2) to check whether `### Open` has a refresh header (`### Open (as of HH:MM · …)`, not `as of –`). If it does, trust the sources marked ✓ there and skip gathering them again (steps 5, 6, and the git/calendar half of 2b) unless the user asks about specific changes; re-gather any source marked ✗ or missing. Then fire the remaining needed steps in parallel in one message.
+First read today's daily note (step 2) to check whether `### Open` has a status line under the heading (`*as of HH:MM · …*`, not `as of –`). If it does, trust the sources marked ✓ there and skip gathering them again (steps 5, 6, and the git/calendar half of 2b) unless the user asks about specific changes; re-gather any source marked ✗ or missing. Then fire the remaining needed steps in parallel in one message.
 
 1. **Time context**: Adapt to morning planning, afternoon energy, evening wrap-up, Sunday/Monday weekly review.
 
@@ -58,7 +58,7 @@ Surface Simon's messages prominently, before planning. Flag yesterday's pending 
 
 1. **Load goals**: Read `~/.claude/context-personal/goals.md` only when relevant (goal-gap check, weekly review, explicit goal discussion).
 
-2. **Apart-kit briefing** (fallback, only if Open has no refresh header): `ak briefing --days 3 -a jason.hoelscherobermaier@gmail.com`
+2. **Apart-kit briefing** (fallback, only if Open has no status line): `ak briefing --days 3 -a jason.hoelscherobermaier@gmail.com`
 
 3. **Weather** (optional, when outdoor activities planned): `/weather`
 
@@ -210,7 +210,7 @@ Proactively offer for work blocks and before transitions. For appointments with 
 
 ## Today Format
 
-Full layout (Open header, `Fixed:`, Send / Decide / Today / Next, Waiting callout, folded `## Log %% fold %%` with plain `- HH:MM source: …` lines): "Open / Log" in `~/Projects/ops/dailies/CLAUDE.md`, example in morning-prep.md §5.
+Full layout (Open status line, `Fixed:`, Send / Decide / Today / Next, `#### Waiting on others %% fold %%`, folded `## Log %% fold %%` with plain `- HH:MM source: …` lines): "Open / Log" in `~/Projects/ops/dailies/CLAUDE.md`, example in morning-prep.md §5.
 
 ```markdown
 #### Today

@@ -89,7 +89,7 @@ workday | off-work | day-off
 
 **Next-day intentions** (target = today only, max 3, each as a task line `EMOJI Title (~duration)` + links):
 
-- Target day is off-work: write them as `- [ ]` lines under `#### Next` at the end of today's `### Open` (before the Waiting callout); prep copies them verbatim into tomorrow's Today. Append if `#### Next` exists; stay within 3 lines.
+- Target day is off-work: write them as `- [ ]` lines under `#### Next` at the end of today's `### Open` (before `#### Waiting on others`); prep copies them verbatim into tomorrow's Today. Append if `#### Next` exists; stay within 3 lines.
 - Target day is a workday: one Log line each under `## Log`, plain format `- HH:MM debrief: ➡️ DD.MM.: <task line>` with tomorrow's date (prep re-enters it as a `- [ ]` line); prep re-enters them that day.
 - Tomorrow is a day-off: write none unless Jason names something due that day.
 
