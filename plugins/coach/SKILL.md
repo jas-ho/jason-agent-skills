@@ -37,7 +37,7 @@ Complements the user's human coach (Simon, via GoalsWon: daily submissions, mont
 
 Surface relevant anchor values in your first response.
 
-First read today's daily note (step 2) to check whether `## Open` has a status line under the heading (`*as of HH:MM · …*`, not `as of –`). If it does, trust the sources marked ✓ there and skip gathering them again (steps 5, 6, and the git/calendar half of 2b) unless the user asks about specific changes; re-gather any source marked ✗ or missing. Then fire the remaining needed steps in parallel in one message.
+First read today's daily note (step 2) to check whether `## Open` has a status line under the heading (`*as of HH:MM · …*`, not `as of –`). If it does, read the latest `sweep` Log line per source: sources marked ✓ within the last ~2 hours are fresh, so skip gathering them again (steps 5, 6, and the git/calendar half of 2b); otherwise, or for any source marked ✗ or missing, re-gather. Then fire the remaining needed steps in parallel in one message.
 
 1. **Time context**: Adapt to morning planning, afternoon energy, evening wrap-up, Sunday/Monday weekly review.
 
@@ -210,7 +210,7 @@ Proactively offer for work blocks and before transitions. For appointments with 
 
 ## Today Format
 
-Full layout (Open status line, `Fixed:`, Send / Decide / Today / Next, `#### Waiting on others %% fold %%`, folded `## Log %% fold %%` with plain `- HH:MM source: …` lines): "Open / Log" in `~/Projects/ops/dailies/CLAUDE.md`, example in morning-prep.md §5.
+Full layout (Open status line, `Fixed:`, Today / Decide / Send / Next, `#### Waiting on others %% fold %%`, folded `## Log %% fold %%` with plain `- HH:MM source: …` lines): "Open / Log" in `~/Projects/ops/dailies/CLAUDE.md`, example in morning-prep.md §5.
 
 ```markdown
 #### Today

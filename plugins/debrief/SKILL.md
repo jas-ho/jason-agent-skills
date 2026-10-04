@@ -68,7 +68,7 @@ Skip any prompt whose answer is already obvious (mode set by calendar, reflectio
 
 ### 4. Write `## Debrief`
 
-Place after `## Log` (heading may end in `%% fold %%`) and the `*Legacy items in [[backlog]]*` line, before `## Details` (same; old notes with `## Prep`: after it). When creating it, write the heading as `## Debrief %% fold %%`; when checking whether a debrief exists, match `## Debrief` as a prefix. Never overwrite other sections.
+Place after `## Log` (heading may end in `%% fold %%`; older notes may have a `*Legacy items in [[backlog]]*` line after it), before `## Details` (same; old notes with `## Prep`: after it). When creating it, write the heading as `## Debrief %% fold %%`; when checking whether a debrief exists, match `## Debrief` as a prefix. Never overwrite other sections.
 
 ```markdown
 ## Debrief %% fold %%
@@ -89,7 +89,7 @@ workday | off-work | day-off
 
 **Next-day intentions** (target = today only, max 3, each as a task line `EMOJI Title (~duration)` + links):
 
-- Target day is off-work: write them as `- [ ]` lines under `#### Next` at the end of today's `## Open` (before `#### Waiting on others`); prep copies them verbatim into tomorrow's Today. Append if `#### Next` exists; stay within 3 lines.
+- Target day is off-work: write them as `- [ ]` lines under `#### Next %% fold %%` at the end of today's `## Open` (before `#### Waiting on others`); prep copies them verbatim into tomorrow's Today. Append if `#### Next` exists; stay within 3 lines.
 - Target day is a workday: one Log line each under `## Log`, plain format `- HH:MM debrief: ➡️ DD.MM.: <task line>` with tomorrow's date (prep re-enters it as a `- [ ]` line); prep re-enters them that day.
 - Tomorrow is a day-off: write none unless Jason names something due that day.
 
@@ -114,7 +114,7 @@ workday | off-work | day-off
 - _Unfinished Open items_: lines still in `## Open` (not cut, not ticked); already have category emoji and rough effort.
 - _Beeper-derived asks/commitments_: single-message asks from chat; needs stakeholder context.
 
-Present as one batch: "[N] items to track. Track in Linear, carry to tomorrow's Open, or drop?" On confirmation, route persistent follow-ups in every category to Linear: reuse a matching issue or create one with the resolved Jason team/project, priority, due date and source context. Put the issue link in the source note so a later sweep recognizes it as already tracked. If moving a legacy backlog item, confirm that specific move and verify the issue before removing its backlog entry. If Linear is unavailable or creation fails, report the item as untracked and preserve its source; do not add it to another tracker. Carry-to-tomorrow becomes a next-day intention per "Next-day intentions" above (`#### Next` or a `➡️ DD.MM.` Log line) and the Open line is cut; it does not create a second task record or remove an existing Linear issue. Keep unchecked outcome items when carrying them; later sweeps should reuse any linked issue.
+Present as one batch (Send and Decide lines excluded: prep re-enters those itself): "[N] items to track. Track in Linear, carry to tomorrow's Open, or drop?" On confirmation, route persistent follow-ups in every category to Linear: reuse a matching issue or create one with the resolved Jason team/project, priority, due date and source context. Put the issue link in the source note so a later sweep recognizes it as already tracked. If moving a legacy backlog item, confirm that specific move and verify the issue before removing its backlog entry. If Linear is unavailable or creation fails, report the item as untracked and preserve its source; do not add it to another tracker. Carry-to-tomorrow becomes a next-day intention per "Next-day intentions" above (`#### Next` or a `➡️ DD.MM.` Log line) and the Open line is cut; it does not create a second task record or remove an existing Linear issue. Keep unchecked outcome items when carrying them; later sweeps should reuse any linked issue.
 
 **Calibration log**: For each `<!-- FEEDBACK(jason): ... -->` and legacy `#prep-feedback` marker found in step 3, append one bullet to `## Active Feedback` in `~/Projects/ops/dailies/calibration.md`. Format: `- YYYY-MM-DD [emoji from marker, default 🔧] description`. **Idempotency**: If any line in `## Active Feedback` already starts with `- <today>`, assume calibration was already written for today and skip. Don't modify the source markers (user's record).
 
