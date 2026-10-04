@@ -37,11 +37,11 @@ Complements the user's human coach (Simon, via GoalsWon: daily submissions, mont
 
 Surface relevant anchor values in your first response.
 
-First read today's daily note (step 2) to check whether `## Open` has a status line under the heading (`*as of HH:MM · …*`, not `as of –`). If it does, read the latest `sweep` Log line per source: sources marked ✓ within the last ~2 hours are fresh, so skip gathering them again (steps 5, 6, and the git/calendar half of 2b); otherwise, or for any source marked ✗ or missing, re-gather. Then fire the remaining needed steps in parallel in one message.
+First read today's daily note (step 2) to check whether `## Open` has a status line with a time under the heading (`*as of HH:MM*`, not `*as of –*`, i.e. a refresh happened). If it does, read the latest `sweep` Log line per source: sources marked ✓ within the last ~2 hours are fresh, so skip gathering them again (steps 5, 6, and the git/calendar half of 2b); otherwise, or for any source marked ✗ or missing, re-gather. Then fire the remaining needed steps in parallel in one message.
 
 1. **Time context**: Adapt to morning planning, afternoon energy, evening wrap-up, Sunday/Monday weekly review.
 
-2. **Daily note**: `~/Projects/ops/dailies/YYYY-MM-DD.md`. Read `## Open` → `## Log` → Details (headings may end in `%% fold %%`: match them as prefixes), following the "Open / Log" rules in `~/Projects/ops/dailies/CLAUDE.md`. Read the most recent prior daily note with a `## Debrief` for carryover (typically yesterday; may be earlier after weekend / days off). If today's Open has a refresh header, trust it; don't re-run ak briefing, git log, weather, or calendar fetches unless user asks about specific changes. Scan today's note for `<!-- FEEDBACK(jason): ... -->` markers (or legacy `#prep-feedback`) and surface them briefly to the user; debrief will fold them into `calibration.md` tonight.
+2. **Daily note**: `~/Projects/ops/dailies/YYYY-MM-DD.md`. Read `## Open` → `## Log` → Details (headings may end in `%% fold %%`: match them as prefixes), following the "Open / Log" rules in `~/Projects/ops/dailies/CLAUDE.md`. Read the most recent prior daily note with a `## Debrief` for carryover (typically yesterday; may be earlier after weekend / days off). If today's Open has a status line, trust it; don't re-run ak briefing, git log, weather, or calendar fetches unless user asks about specific changes. Scan today's note for `<!-- FEEDBACK(jason): ... -->` markers (or legacy `#prep-feedback`) and surface them briefly to the user; debrief will fold them into `calibration.md` tonight.
 
 2b. **GoalsWon signals** (best-effort):
 `bash
@@ -58,7 +58,7 @@ Surface Simon's messages prominently, before planning. Flag yesterday's pending 
 
 1. **Load goals**: Read `~/.claude/context-personal/goals.md` only when relevant (goal-gap check, weekly review, explicit goal discussion).
 
-2. **Apart-kit briefing** (fallback, only if Open has no status line): `ak briefing --days 3 -a jason.hoelscherobermaier@gmail.com`
+2. **Apart-kit briefing** (fallback, only if Open has no timed status line): `ak briefing --days 3 -a jason.hoelscherobermaier@gmail.com`
 
 3. **Weather** (optional, when outdoor activities planned): `/weather`
 
@@ -81,7 +81,7 @@ New shape: rhythms surface as **daily questions** in the morning Open as visible
 - ❤️ **Any non-routine relationship check-in fits today?**
 - 📈 Only when Jason raises it or Today is light: **Who could you reach out to today?** (candidates from Linear and legacy backlog)
 
-**Accountability counts individual acts, not blocks.** 5 individual outreach messages spread across week beats one 5-contact batch. Specific candidates come from Linear and existing legacy items; compounder prompts ask Jason to _pick from_ those candidates, _invent_ a small move, or _intentionally skip_ with a one-word reason. New persistent follow-ups go to Linear; daily rhythm prompts stay in Plan.
+**Accountability counts individual acts, not blocks.** 5 individual outreach messages spread across week beats one 5-contact batch. Specific candidates come from Linear and existing legacy items; compounder prompts ask Jason to _pick from_ those candidates, _invent_ a small move, or _intentionally skip_ with a one-word reason. New persistent follow-ups go to Linear; daily rhythm prompts stay in Open.
 
 Mode-shape:
 
@@ -112,11 +112,11 @@ If invoked mid-day or Open/GoalsWon already reflects today's state, skip complet
 
 4. Identify priorities (🥇🥈🥉 force-ranked, one each) with rough time estimates
 
-4b. **Goal-vs-Plan gap check**: After priorities are drafted, briefly compare the Plan against current yearly goals (read `~/.claude/context-personal/goals.md` if not already loaded). Surface any unrepresented high-leverage area as one question: "Plan doesn't cover [X, Y]. Worth adding?" Let the user's actual goals drive what to check.
+4b. **Goal-vs-Open gap check**: After priorities are drafted, briefly compare Open against current yearly goals (read `~/.claude/context-personal/goals.md` if not already loaded). Surface any unrepresented high-leverage area as one question: "Open doesn't cover [X, Y]. Worth adding?" Let the user's actual goals drive what to check.
 
-1. **Surface compounder prompts** as `#### Today` checkbox items per workday/off-work mode (see Compounding Activities): workday 🌱 + 👟, off-work 👟 + ❤️, question form. If anchors.md names a missing modality (e.g. "week needs strength + VO2"), surface that in the 👟 prompt. When user picks a specific item as the answer, add it as a regular Today line and cut the prompt with a Log line.
+1. **Surface compounder prompts** as `#### Today` checkbox items per workday/off-work mode (see Compounding Activities): workday 🌱 + 👟, off-work 👟 + ❤️, question form. If anchors.md names a missing modality (e.g. "week needs strength + VO2"), surface that in the 👟 prompt. Answers: see Compounding Activities.
 2. Note planned transitions; offer `coach-timer` for work blocks and transitions
-3. **Refine `## Open`** in daily note, per the "Open / Log" rules in `~/Projects/ops/dailies/CLAUDE.md`. Lines are title-only (one line per task, `→ [[#detail]]` links to Details) and go in `#### Send` / `#### Decide` / `#### Today`; on an off-work day, up to 3 lines for the next day go in `#### Next`. Jason's lines are canonical: add links and estimates in place, never revert his order or wording. Removing a line = cut it + one Log line (`- HH:MM coach: ✅ / ➡️ DD.MM. / ➡️ <where> / ❌ …`); ≤ 15 checkbox items. When adding a task needing context, create a matching `####` section in Details. Route new persistent tasks in every category to Linear: reuse a matching issue or create one with the resolved Jason team and appropriate project/labels/priority, state Backlog or Todo. Today-only items stay in Open. If the note doesn't exist, create it from `~/Projects/ops/templates/daily.md`. Run `dailies-lint` after editing.
+3. **Refine `## Open`** in the daily note, following "Open / Log" in `~/Projects/ops/dailies/CLAUDE.md` (layout, line format, caps, Jason's lines canonical, done = cut + Log line with source `coach`). Route new persistent tasks in every category to Linear: reuse a matching issue or create one with the resolved Jason team and appropriate project/labels/priority, state Backlog or Todo. Today-only items stay in Open. If the note doesn't exist, create it from `~/Projects/ops/templates/daily.md`. Run `dailies-lint` after editing.
 
 **Natural language task commands**: Interpret "move to backlog", "defer", "pull from backlog/Linear", "reprioritize", "mark done" naturally. In the note, "mark done" = cut the Open line + Log `- HH:MM coach: ✅ …`; "defer" = cut + Log `➡️ DD.MM.: <line>` (prep brings it back that day). New persistent tasks and existing Linear tasks use Linear; "backlog" means its Backlog state unless Jason explicitly refers to a legacy note item. Existing legacy items may be curated in place or individually migrated with agreement. Never copy a Linear task into `backlog.md`. **Done transitions**: `/coach` moves issues among Backlog/Todo/In Progress freely; transition to **Done** only on an explicit "mark done" from Jason. Routine end-of-day completion reconciliation (matching finished items to issues and closing them) is `/debrief`'s job, not coach's.
 
@@ -125,11 +125,11 @@ If invoked mid-day or Open/GoalsWon already reflects today's state, skip complet
    - **backlog.md (legacy items)**: read `### Active`, filter out `⏳` blocked. Present unblocked Active grouped by cluster: "Available from legacy backlog: [grouped list with ~effort]. Which fit today?" Highlight approaching deadlines and items stale >2 weeks. Also scan `### Backburner` for `[by DATE]` within 7 days; suggest promoting.
    - Combined candidate cap: 8.
 
-   **Individual legacy migration**: when an existing backlog item surfaces or gets picked, offer to move that item to Linear. On agreement, check for an existing issue, create or reuse it with the relevant context and due date, verify success, then remove the backlog entry and link the issue from Plan/Details. On failure, preserve the original and report it. Do not bulk-migrate or infer consent from selecting an item for today's Plan.
+   **Individual legacy migration**: when an existing backlog item surfaces or gets picked, offer to move that item to Linear. On agreement, check for an existing issue, create or reuse it with the relevant context and due date, verify success, then remove the backlog entry and link the issue from Open/Details. On failure, preserve the original and report it. Do not bulk-migrate or infer consent from selecting an item for today's Open.
 
-   Check if Plan items from external sources (prep signals, emails, meetings) need persistent tracking; route Jason's follow-ups to Linear regardless of category, reusing existing issues.
+   Check if Open lines from external sources (prep signals, emails, meetings) need persistent tracking; route Jason's follow-ups to Linear regardless of category, reusing existing issues.
 
-2. **Submit to GoalsWon** (interactive, any day). Focused daily accountability subset of Plan, never a second persistent task backlog or the full list. Linear retains task ownership.
+2. **Submit to GoalsWon** (interactive, any day). Focused daily accountability subset of Open, never a second persistent task backlog or the full list. Linear retains task ownership.
 
    Read `goalswon goals list --today --limit 50`. Use judgment to pick items:
    - ALWAYS: 🥇 priorities
@@ -141,7 +141,7 @@ If invoked mid-day or Open/GoalsWon already reflects today's state, skip complet
 
    Preview existing + proposed. Accept inline edits. Submit via `goalswon goals create "<title>" --today`. On error: one-line notice, continue. Never block planning.
 
-   Batch GoalsWon additions with Plan changes in one confirmation when possible.
+   Batch GoalsWon additions with Open changes in one confirmation when possible.
 
 ### During the Day
 
@@ -210,7 +210,7 @@ Proactively offer for work blocks and before transitions. For appointments with 
 
 ## Today Format
 
-Full layout (Open status line, `Fixed:`, Today / Decide / Send / Next, `#### Waiting on others %% fold %%`, folded `## Log %% fold %%` with plain `- HH:MM source: …` lines): "Open / Log" in `~/Projects/ops/dailies/CLAUDE.md`, example in morning-prep.md §5.
+Layout and line format: "Open / Log" in `~/Projects/ops/dailies/CLAUDE.md`; full example in morning-prep.md §5.
 
 ```markdown
 #### Today
@@ -221,7 +221,7 @@ Full layout (Open status line, `Fixed:`, Today / Decide / Send / Next, `#### Wai
 - [ ] 👟 Which training modality today?
 ```
 
-Titles only, with estimate and the links needed to act. Detail in `####` sections in Details. 🥇🥈🥉 one each. Emojis combinable. No transition lines, no weather.
+Emojis combinable. No transition lines, no weather.
 
 ## System maintenance: entity inconsistencies
 
