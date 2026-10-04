@@ -68,7 +68,7 @@ Skip any prompt whose answer is already obvious (mode set by calendar, reflectio
 
 ### 4. Write `## Debrief`
 
-Place after `## Log` (heading may end in `%% fold %%`; older notes may have a `*Legacy items in [[backlog]]*` line after it), before `## Details` (same; old notes with `## Prep`: after it). When creating it, write the heading as `## Debrief %% fold %%`; when checking whether a debrief exists, match `## Debrief` as a prefix. Never overwrite other sections.
+Place after `## Details` and its footer, before `## Log` (headings may end in `%% fold %%`). Older notes (before 05.10.2026) have the order Log → Debrief → Details: there, place it after `## Log` and before `## Details`. When creating it, write the heading as `## Debrief %% fold %%`; when checking whether a debrief exists, match `## Debrief` as a prefix. Never overwrite other sections.
 
 ```markdown
 ## Debrief %% fold %%
