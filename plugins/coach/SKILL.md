@@ -168,6 +168,7 @@ Interactive review, typically Sunday or Monday. Runs when the user invokes it or
 - `DoneThat get_message` with `date=MONDAY`, `level="week"`, `format="text"` for hours/categories
 - `goalswon targets list -m $(date +%Y%m)` and `goalswon progress -f <MONDAY> -t <SUNDAY>` for streak/completion
 - Read `backlog.md` and `calibration.md`
+- `ssh cairn '~/vps-setup/services/static-sites/klar/klar.py log --since <MONDAY>'` for the week's klar entries (daily practice: one honest small sentence to Johanna, logged at klar.jasho.fyi). Look at the count, the outcomes and the actual wording with Jason; no streak talk. Tool and practice are frozen until the 2026-10-25 review; decide there what changes.
 
 **Discuss with user** (interactive, not a monologue):
 
