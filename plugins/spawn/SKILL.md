@@ -75,9 +75,9 @@ prompt per task, then call that script.
      background", or the task needs no live steering.
    - **Remote Control** (`"remote": true`, claude only): enables Claude Code's
      Remote Control so the user can watch and steer the spawned session from
-     their phone or claude.ai/code. See "Remote Control" below for when to set
-     it — it is **off by default** and is a deliberate, per-task choice, not a
-     blanket on. codex has no per-session equivalent (its Remote Control is a
+     their phone or claude.ai/code. **On by default for every claude spawn**
+     (Jason, 09.10.2026): set `"remote": true` unless an exception under
+     "Remote Control" below applies. codex has no per-session equivalent (its Remote Control is a
      machine daemon); the script rejects `"remote": true` for Codex and OMP.
 
 3. **Compose the prompt per task** — the part only the running agent can do
@@ -213,25 +213,18 @@ Trade-offs (verified against Claude Code docs + the installed CLI, 2026-07-13):
 - A few commands stay desktop-only when driving remotely (`/resume`, `/plugin`,
   `/cwd*`); everyday steering and `/model`/`/config` work from the phone.
 
-**Calibrated line — deciding `remote` per task.** Default off. Then:
+**Default — deciding `remote` per task.** On for every claude spawn (Jason's
+standing instruction, 09.10.2026). Leave it off only when:
 
-- **Explicit request** ("make it remote", "I'll watch from my phone", "enable
-  Remote Control") → enable it. If the task touches sensitive content, note the
-  exposure in one line so the user can reconsider, but follow the instruction.
-- **A cue, not a request** ("I'm heading out", "I'll be away") → this signals
-  _interest_, not consent to expose the session, and does not tell you the
-  machine will stay awake (RC dies after ~10 min of sleep). Ask one short
-  question — "want it remote-controllable from your phone? (the machine needs
-  to stay awake)" — rather than assuming.
-- **Proactive** (no signal from the user) → enable only when all hold: the task
-  is a long unattended run, checking from elsewhere is clearly useful, nothing
-  about it is sensitive, and the machine won't sleep. Otherwise leave it off.
+- the user says so for this spawn ("no remote", "local only");
+- the task is private/sensitive (therapy notes, private financials, credentials
+  in scope): leave it off and say so in one line, so the user can turn it on;
+- the agent is codex or OMP (the script rejects it).
 
-Never enable it for private/sensitive work without an explicit ask, for quick
-tasks, or when the machine is a laptop about to close. When you do enable it,
-say so in the summary (the post-spawn status line notes `· remote control
-requested`; Remote Control finishes connecting a few seconds later, so the user
-confirms it on their phone or the pane's footer) so a wrong call is caught fast.
+The laptop-sleep caveat stays true (RC exits after ~10 min of sleep), but it is
+no reason to skip it. Say in the summary that it is on (the post-spawn status
+line notes `· remote control requested`; Remote Control finishes connecting a
+few seconds later, so the user confirms it on their phone or the pane's footer).
 
 ## Notes
 
