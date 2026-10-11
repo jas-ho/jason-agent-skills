@@ -76,6 +76,7 @@ import json
 import os
 import re
 import shlex
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -109,11 +110,44 @@ def sanitize_session_name(name: str) -> str:
     return cleaned or "spawn"
 
 
-def tmux(*args: str, server: str | None = None) -> subprocess.CompletedProcess:
+def tmux(
+    *args: str, server: str | None = None, prefix: list[str] | None = None
+) -> subprocess.CompletedProcess:
     sock = ["-L", server] if server else []
     return subprocess.run(
-        ["tmux", *sock, *args], capture_output=True, text=True, check=False
+        [*(prefix or []), "tmux", *sock, *args],
+        capture_output=True,
+        text=True,
+        check=False,
     )
+
+
+def server_scope_prefix() -> list[str]:
+    """Launch prefix that gives a new tmux server its own systemd scope (Linux).
+
+    A server started from inside a service (the concierge on cairn) otherwise
+    lives in that service's cgroup and dies on every restart of it, taking all
+    spawned sessions along; choom resets the service's negative OOM score the
+    server would inherit (cairn OOM containment, 2026-10-11). Empty where
+    systemd-run or choom is missing (macOS), so the server starts as before.
+    """
+    if not sys.platform.startswith("linux"):
+        return []
+    if not (shutil.which("systemd-run") and shutil.which("choom")):
+        return []
+    return [
+        "systemd-run",
+        "--user",
+        "--scope",
+        "--quiet",
+        "-p",
+        "Delegate=yes",
+        "--",
+        "choom",
+        "-n",
+        "100",
+        "--",
+    ]
 
 
 def login_shell_path_into_server(server: str | None = None) -> None:
@@ -383,9 +417,10 @@ def spawn(task: dict) -> dict:
     remote = bool(task.get("remote"))
     mode = task.get("mode", "thinking")
     server = MODES[mode]
-    # Plain tmux follows $TMUX; a thinking spawn from inside a delegated pane
-    # must still land on the default server, not stay hidden.
-    if server is None and caller_server() == MODES["delegated"]:
+    # Plain tmux follows $TMUX; a thinking spawn from inside another server's
+    # pane (delegated, or the concierge's own server on cairn) must still land
+    # on the default server, not stay hidden or die with that server.
+    if server is None and caller_server() not in ("", "default"):
         server = "default"
     title = f"{session}/{name}"
     cmd_args: list[str] = []
@@ -436,7 +471,8 @@ def spawn(task: dict) -> dict:
         # check is best effort (a server created by someone else between the two
         # tmux calls would be treated as ours).
         server_was_running = tmux("list-sessions", server=server).returncode == 0
-        result = tmux(
+        prefix = [] if server_was_running else server_scope_prefix()
+        new_session = [
             "new-session",
             "-d",
             "-s",
@@ -449,8 +485,17 @@ def spawn(task: dict) -> dict:
             "-F",
             fmt,
             *cmd_args,
-            server=server,
-        )
+        ]
+        result = tmux(*new_session, server=server, prefix=prefix)
+        if prefix and result.returncode != 0:
+            # No user systemd instance (e.g. a bare ssh shell): an unscoped
+            # server beats no session at all.
+            print(
+                f"spawn: scoped tmux server failed ({result.stderr.strip()}); "
+                "starting it unscoped",
+                file=sys.stderr,
+            )
+            result = tmux(*new_session, server=server)
         if result.returncode == 0 and not server_was_running:
             login_shell_path_into_server(server)
     if result.returncode != 0:

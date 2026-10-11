@@ -38,7 +38,7 @@ Use the existing `~/bin/job-run` convention; read `~/bin/specs/job-run/README.md
 
 ## Cairn scheduling
 
-Use the existing desired-state manifest and its deployment mechanism for managed systemd services/timers. Read the relevant unit and owner before editing. User timers and existing cron jobs keep their intended scheduler; avoid duplicate schedules. Cron times are UTC on this host. Do not install OMP merely to distribute a shared workflow. Report an absent CLI separately from a missing account login.
+Use the existing desired-state manifest and its deployment mechanism for managed systemd services/timers. Read the relevant unit and owner before editing. Scheduled jobs are systemd user timers only (crontab is empty by design since 2026-09-07; see the header comment in `crontab -l`): declare new ones in `~/vps-setup/vps-manifest.toml` and apply with `~/vps-setup/scripts/vps-apply`, never add a cron entry, and avoid duplicate schedules. OnCalendar times are Europe/Vienna. Memory-heavy or parallel job steps run via `heavy-run` (OOM containment, `vps-desired-state.md`). Do not install OMP merely to distribute a shared workflow. Report an absent CLI separately from a missing account login.
 
 ## Verify and report
 

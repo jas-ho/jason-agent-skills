@@ -228,6 +228,7 @@ few seconds later, so the user confirms it on their phone or the pane's footer).
 
 ## Notes
 
+- On Linux, a tmux server the script starts gets its own systemd user scope with OOM score 100 (`systemd-run --user --scope -p Delegate=yes -- choom -n 100`), so sessions spawned from inside a service (the concierge on cairn) survive its restarts; it falls back to a plain server without a user systemd. A thinking spawn from any non-default server's pane (delegated, the concierge's own server) goes to the default server.
 - Session names `.`/`:` are sanitized to `-`; the name `concierge` is
   reserved (supervised service) and the script refuses it.
 - Requires tmux and the selected agent CLI on each host. Verify that host’s installed CLI supports the documented constructor before claiming continuity; OMP live fork/resume continuity remains untested here.

@@ -216,7 +216,7 @@ class CommandTests(unittest.TestCase):
     def test_delegated_uses_own_socket(self):
         calls = []
 
-        def fake(*args, server=None):
+        def fake(*args, server=None, prefix=None):
             calls.append((args, server))
             out = "s:1|%1" if args[0] in ("new-window", "new-session") else ""
             return subprocess.CompletedProcess(
@@ -242,7 +242,7 @@ class CommandTests(unittest.TestCase):
     def test_thinking_from_delegated_pane_goes_to_default(self):
         calls = []
 
-        def fake(*args, server=None):
+        def fake(*args, server=None, prefix=None):
             calls.append(server)
             out = "s:1|%1" if args[0] in ("new-window", "new-session") else ""
             return subprocess.CompletedProcess(
@@ -258,6 +258,52 @@ class CommandTests(unittest.TestCase):
             spawn.spawn({"name": "t", "agent": "none", "dir": str(self.work)})
         self.assertTrue(calls)
         self.assertTrue(all(server == "default" for server in calls))
+
+    def test_thinking_from_concierge_server_goes_to_default(self):
+        calls = []
+
+        def fake(*args, server=None, prefix=None):
+            calls.append(server)
+            out = "s:1|%1" if args[0] in ("new-window", "new-session") else ""
+            return subprocess.CompletedProcess(
+                args, 1 if args[0] == "has-session" else 0, out, ""
+            )
+
+        env = {"TMUX": "/tmp/tmux-1000/concierge,1,0"}
+        with (
+            patch.object(spawn, "tmux", fake),
+            patch.object(spawn, "login_shell_path_into_server"),
+            patch.dict(os.environ, env),
+        ):
+            spawn.spawn({"name": "t", "agent": "none", "dir": str(self.work)})
+        self.assertTrue(calls)
+        self.assertTrue(all(server == "default" for server in calls))
+
+    def test_new_server_gets_scope_prefix_and_falls_back(self):
+        calls = []
+        scope = ["systemd-run", "--user", "--scope", "--"]
+
+        def fake(*args, server=None, prefix=None):
+            calls.append((args[0], prefix))
+            if args[0] in ("has-session", "list-sessions"):
+                return subprocess.CompletedProcess(args, 1, "", "")
+            if args[0] == "new-session" and prefix:
+                return subprocess.CompletedProcess(args, 1, "", "no user bus")
+            out = "s:1|%1" if args[0] == "new-session" else ""
+            return subprocess.CompletedProcess(args, 0, out, "")
+
+        with (
+            patch.object(spawn, "tmux", fake),
+            patch.object(spawn, "login_shell_path_into_server"),
+            patch.object(spawn, "server_scope_prefix", return_value=scope),
+        ):
+            spawn.spawn({"name": "t", "agent": "none", "dir": str(self.work)})
+        new_sessions = [p for cmd, p in calls if cmd == "new-session"]
+        self.assertEqual(new_sessions, [scope, None])
+
+    def test_scope_prefix_empty_off_linux(self):
+        with patch.object(spawn.sys, "platform", "darwin"):
+            self.assertEqual(spawn.server_scope_prefix(), [])
 
 
 if __name__ == "__main__":
