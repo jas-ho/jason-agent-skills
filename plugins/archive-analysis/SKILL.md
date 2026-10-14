@@ -66,9 +66,9 @@ Proceed?
 2. Create `archive/` and `archive/index.md` if needed
 3. Move files: `mv FILE.md archive/YYYY-MM-DD-description-FILE.md`
 4. Update `archive/index.md` with entry
-5. Commit: `git add archive/ TODO.md && git commit -m "docs: archive [description]"`
+5. Commit: `git add archive/ TODO.md`, get the staged diff reviewed independently (`~/.claude/rules/code.md`), then `git commit -m "docs: archive [description]" --trailer "Reviewed-by: <reviewer> <verdict>"`, filling in the actual reviewer and verdict (e.g. `Reviewed-by: codex APPROVED`); the commit hook refuses the placeholder
 6. Get commit hash, update index.md with hash
-7. Delete archived files: `git rm archive/YYYY-MM-DD-*.md && git commit -m "docs: remove archived files from working tree"`
+7. Delete archived files: `git rm archive/YYYY-MM-DD-*.md`, review as in step 5, then `git commit -m "docs: remove archived files from working tree" --trailer "Reviewed-by: <reviewer> <verdict>"`
 
 ### 5. Report
 
