@@ -78,13 +78,15 @@ Record the exact returned identity and resume only it with the same scope. The c
 3. Ask for an adversarial stance ("review as the engineer who inherits this
    code and is skeptical of the author") and require a closing line
    `VERDICT: APPROVED` or `VERDICT: REVISE` with prioritized findings.
-4. Launch in background; continue other work.
+4. Launch in background; continue other work, but do not stage or unstage anything in that repo until the reviewed commit is made (keep other work unstaged or in another worktree).
 5. On return, **adjudicate — don't auto-apply.** The value is the different
    perspective, not a better one. Check each finding against the actual code;
    substantial reviews typically mix real findings with 1–2 confident misreads
    (verify before "fixing"). Fix what's real.
 6. If REVISE: fix, then resume the exact persistent session with what changed (the diff of
-   the fix, not your reasoning); changes made after a review get their own review. Cap at 3 rounds; on stalemate, present both
+   the fix, not your reasoning: `git diff` of the fix before staging it, plus the refreshed
+   `git status --short`); changes made after a review get their own review, and the
+   trailer records the final round's verdict. Cap at 3 rounds; on stalemate, present both
    positions to the user instead of looping.
    For high-stakes changes (live-deployed, data-touching), after the loop
    converges run one FRESH session over the final diff — incremental rounds
@@ -137,7 +139,7 @@ Before code is first pinned for counted results, a release or a decision, and ag
 
 ## Known failure modes
 
-- Sandbox startup failure: `sandbox_apply: Operation not permitted` (observed with helper exit 71) means no review occurred. Other sandboxed agent hosts may encounter it too; this has not been verified. See [README.md](README.md#codex-sandbox-startup-failure-september-25-2026) before retrying; do not weaken permissions. A same-family worker can supplement review but leaves cross-model coverage incomplete, unless ai-tools.md "Who reviews" names a fresh Claude subagent for that case.
+- Sandbox startup failure: `sandbox_apply: Operation not permitted` (observed with helper exit 71) means no review occurred. Other sandboxed agent hosts may encounter it too; this has not been verified. See [README.md](README.md#codex-sandbox-startup-failure-september-25-2026) before retrying; do not weaken permissions. A same-family worker can supplement review but leaves cross-model coverage incomplete; fall back per ai-tools.md "Who reviews" and name the gap in the report.
 - Silent review: distinguish buffered model reasoning from startup/auth/tool-loading failure using streamed events and stderr. Inlining solves missing artifact access, not every cause of delayed output. See the measured Claude setup diagnosis in README.md.
 - The counterpart flagging nonexistent bugs: settle with a test that proves it one way
   or the other, not with argument.

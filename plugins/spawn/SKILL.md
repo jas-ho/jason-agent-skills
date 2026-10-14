@@ -130,7 +130,7 @@ alone and include:
   on one file the user is editing, make the first action `invoke the co-edit skill on <file>`.
 - **Guardrails** — operations that need the user's explicit approval in the
   new session.
-- **Git end state** — branch, push, history rewrite or not, deploy; carry the
+- **Git end state** — branch, remote, push, history rewrite or not, deploy; carry the
   push authorization this conversation actually has. A brief may allow pushing
   to a private remote the user set up, so CI runs. Every commit there follows
   the commit-review rule (`Reviewed-by:` trailer).

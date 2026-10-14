@@ -155,11 +155,13 @@ If changes are unrelated, stage them separately:
 # First commit
 git add <first-group-of-files>
 "$safe_commit_skill_dir/safe_commit.sh"
+# review the staged diff + git status --short (codex-pair REVIEW), then:
 git commit -m "first commit" --trailer "Reviewed-by: <reviewer> <VERDICT>"
 
 # Second commit
 git add <second-group-of-files>
 "$safe_commit_skill_dir/safe_commit.sh"
+# review the staged diff + git status --short (codex-pair REVIEW), then:
 git commit -m "second commit" --trailer "Reviewed-by: <reviewer> <VERDICT>"
 ```
 
