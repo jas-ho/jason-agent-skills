@@ -53,6 +53,8 @@ Use conventional commit format: `<type>(<scope>): <description>`
 
 Types: feat, fix, refactor, style, docs, chore
 
+Before each commit, get an independent review of what is staged (`chezmoi git -- diff --cached`), shown next to what stays unstaged or untracked, with the `codex-pair` skill in REVIEW mode. Commit only on an approving verdict and record it as the last line of the message, e.g. `chezmoi git -- commit -m "feat(zsh): add aliases" -m "Reviewed-by: codex APPROVED"`. auto-sync never commits dotfiles and pushes only commits with a `Reviewed-by:` line; unreviewed local commits stay unpushed and raise an alert.
+
 ## 5. Pull Remote Changes and Push
 
 Pull any remote changes first (another machine may have pushed), then push:
@@ -71,6 +73,7 @@ Provide a summary of:
 - How many files were updated
 - What commits were created
 - Whether push was successful
+- What was left uncommitted (files still listed by `chezmoi status` or `chezmoi git -- status`), by name
 - Any untracked important dotfiles that need attention
 
 ## Important Notes
@@ -93,8 +96,8 @@ chezmoi git -- status
 # Stage files (use chezmoi's dot_ prefix naming)
 chezmoi git -- add dot_zshrc executable_dot_tmux.conf
 
-# Commit
-chezmoi git -- commit -m "feat(zsh): add new aliases"
+# Commit (after the review in step 4)
+chezmoi git -- commit -m "feat(zsh): add new aliases" -m "Reviewed-by: codex APPROVED"
 
 # Push
 chezmoi git -- push
