@@ -97,10 +97,12 @@ script.py:10: error: Name 'foo' is not defined
 - Check recent style: `git log -5 --oneline`
 - Ask user for confirmation
 
-### 5. Execute Commit
+### 5. Review, then Commit
+
+Every commit first gets an independent review of exactly what is staged, next to the list of what is unstaged or untracked (codex-pair skill, REVIEW mode; who reviews: `~/.claude/context-coding/ai-tools.md`). Commit what was reviewed, with the verdict as a trailer:
 
 ```bash
-git commit -m "your message here"
+git commit -m "your message here" --trailer "Reviewed-by: <reviewer> <VERDICT>"
 ```
 
 ## What the Script Does
@@ -153,12 +155,12 @@ If changes are unrelated, stage them separately:
 # First commit
 git add <first-group-of-files>
 "$safe_commit_skill_dir/safe_commit.sh"
-git commit -m "first commit"
+git commit -m "first commit" --trailer "Reviewed-by: <reviewer> <VERDICT>"
 
 # Second commit
 git add <second-group-of-files>
 "$safe_commit_skill_dir/safe_commit.sh"
-git commit -m "second commit"
+git commit -m "second commit" --trailer "Reviewed-by: <reviewer> <VERDICT>"
 ```
 
 To unstage files already staged:

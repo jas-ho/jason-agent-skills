@@ -67,6 +67,8 @@ After all CLAUDE.md edits are final, run the reconciler. It regenerates `~/.code
 - `SETTINGS`/`KEY` drift lines mean the two hosts' settings differ on a key not listed in `host_only`: tell the user which key; fixing it means editing the live settings.json on the right host (never the snapshot) or adding the key to `host_only` with a reason. Hooks are compared per event with home paths normalized; a hook that exists on one host only goes on the other host too (same command with that host's home; the comparison ignores entries matching `host_only_hooks`, currently the Orca desktop and jcode hooks).
 - `STALE`/`UNDECLARED` lines are symlinks the manifest does not know; ask before removing anything.
 - Declare shared workflows under `[workflows.<id>]` in `agent-config.toml`, with canonical source, target/host scope, commands and dependencies. Add ignore rules for generated paths that Git does not already ignore; never commit a link outside the repository. Run `agent-config report --json` before changing selection. Its `selector_requirements` describe the native Claude, Codex and OMP prerequisites; update only those fields through supported configuration while preserving unrelated state and existing disables. Apply checks these selectors and does not write them for you. Codex disables must cover the resolved source path. Cairn receives OMP configuration and skills now, while OMP installation remains deferred.
+- After pulling `~/.claude` by hand on either host (e.g. `ssh cairn 'cd ~/.claude && git pull'` to make a skill change live), run `agent-config apply` there too; otherwise the generated `~/.codex/AGENTS.md` goes stale and the health check alerts. auto-sync does this after its own pulls.
+- Parity baseline for `audit`: the four shared hook mappings in `[[parity.hooks]]` (bashism guard, co-edit write guard, html/marimo validation, commit-review guard) and disabled-skill selections, on Mac and cairn. Resolve drift or document intentional differences in `agent-config.toml`; if runtime checks are unavailable, run `agent-config audit` and report the limitation.
 - Treat a shared-source pull as a live deployment. Add new shared paths without removing the old ones, deploy the sources, then deploy the manifest; retire old paths only after every applicable host has reconciled. Reconciliation must run after the relevant repository pulls complete successfully. A first cutover needs exact legacy-path adoption as well as selector setup; never remove a rollout hold until its preflight and apply/check pass. Commits go through the pre-commit hook; never use `--no-verify`.
 
 ## 4. Commit Changes in Logical Groups
@@ -100,13 +102,13 @@ Commit changes with descriptive messages following conventional commit format:
 - `plugins` - Plugin configs
 - `agents` - Agent definitions
 
-## 5. Add and Commit
+## 5. Add, Review and Commit
 
-For each logical group:
+For each logical group: stage it, have exactly what is staged reviewed next to `git -C ~/.claude status --short` (codex-pair skill, REVIEW mode; who reviews: `~/.claude/context-coding/ai-tools.md`), adjudicate, then commit what was reviewed with the verdict as a trailer:
 
 ```bash
 git -C ~/.claude add <files>
-git -C ~/.claude commit -m "<commit message>"
+git -C ~/.claude commit -m "<commit message>" --trailer "Reviewed-by: <reviewer> <VERDICT>"
 ```
 
 ## 6. Pull Remote Changes and Push (if configured)

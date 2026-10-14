@@ -1,6 +1,6 @@
 ---
 name: codex-pair
-description: Cross-model pairing between Claude Code and Codex. REVIEW has the other model review a diff, plan, spec, or prompt; IMPLEMENT gives the other model a committed spec and acceptance gate, then the originating agent reviews. Use on "codex/claude review", "second opinion", "red team this", "have the other model implement this", or after any substantial code change before commit.
+description: Cross-model pairing between Claude Code and Codex. REVIEW has the other model review a diff, plan, spec, or prompt; IMPLEMENT gives the other model a committed spec and acceptance gate, then the originating agent reviews. Use on "codex/claude review", "second opinion", "red team this", "have the other model implement this", or before every commit (the commit-review rule), and for structure reviews of a whole codebase before pinning it.
 ---
 
 # Cross-model pairing
@@ -15,15 +15,16 @@ Requires the counterpart CLI to be authenticated.
 
 | Situation                                                                                      | Mode                                                                          |
 | ---------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| Substantial code change exists (default: every one, pre-commit)                                | REVIEW                                                                        |
+| Anything staged for a commit (every commit; the commit hook refuses one without `Reviewed-by:`) | REVIEW                                                                        |
 | Plan, spec, or subagent prompt worth stress-testing                                            | REVIEW (plans benefit most — catches second-order effects before code exists) |
 | Well-specifiable feature, testable contract, ≥~3 files or mechanical breadth                   | IMPLEMENT                                                                     |
-| Small diff (≤2 files, ≤~30 lines), design/UI judgment, needs interactive verification mid-loop | stay with the current agent, REVIEW after                                     |
+| Small diff (≤2 files, ≤~30 lines), design/UI judgment, needs interactive verification mid-loop | implement with the current agent; REVIEW before the commit                    |
+| Code about to be pinned for counted results, a release or a decision                           | CODEBASE                                                                      |
 | Stuck after 2 failed attempts                                                                  | fresh-eyes diagnosis: REVIEW-style prompt asking for root cause, not fixes    |
 
 ## Harness routing and invocation
 
-Use native workers for ordinary independent research or implementation. This skill is the explicit exception for cross-model review: from Codex use Claude; from CC use Codex. From OMP, choose a counterpart with a different model family from the current author (Astra → Claude; Claude → Codex). Do not silently change the requested model or call two Astra workers cross-model diversity. The counterpart CLI must already be authenticated; otherwise report the missing login and continue independent work.
+Use native workers for ordinary independent research or implementation. Who reviews (the other model family by default, the exceptions, and pins) is decided in `~/.claude/context-coding/ai-tools.md` "Who reviews"; this skill supplies the mechanics. From Codex the cross-model counterpart is Claude; from CC it is Codex; from OMP, a different model family from the current author (Astra → Claude; Claude → Codex). Do not silently change the requested model or call two Astra workers cross-model diversity. The counterpart CLI must already be authenticated; otherwise report the missing login and continue independent work.
 
 Read the following contracts before constructing the actual command. Replace prompt/output paths with unique files per job, keep stdin closed for detached runs, and use the owning harness's background-process mechanism. Track that process and output explicitly; never wait for a completion event the launcher does not provide.
 
@@ -62,14 +63,14 @@ Record the exact returned identity and resume only it with the same scope. The c
 ### Shared operational rules
 
 - Use the configured default model unless the user selects one or an unavailable default needs a supported replacement.
-- For REVIEW, inline the complete artifact and relevant constraints and say “do not read files or run commands.” For code, include the full scoped diff (staged, unstaged and all untracked files in scope), affected interfaces and tests; a summary is insufficient. Record the reviewed commit/diff, supplied context, reviewer and verdict in the completion report. Missing context must be supplied before claiming that scope reviewed.
+- For REVIEW, inline the complete artifact and relevant constraints and say “do not read files or run commands.” For a commit, the artifact is exactly what is staged (`git diff --cached`), shown next to the list of what is left unstaged or untracked (`git status --short`), so the reviewer can flag what is missing as well as what should not go in; add affected interfaces and tests as context. A summary is insufficient. Record the reviewed diff, supplied context, reviewer and verdict in the completion report, and in the commit as `Reviewed-by: <reviewer> <VERDICT>`. Missing context must be supplied before claiming that scope reviewed.
 - Observe streamed progress separately from the final result. Initialization or thinking events prove activity, not completion; require a terminal result with no error and a successful process exit and a substantive response ending in the requested verdict before accepting the review. Preserve stdout and stderr on failure. Extract the final result text for adjudication rather than presenting raw event logs.
 - Choose a bounded review budget proportional to the artifact (for example, ten minutes for a substantial multi-file review), and poll via the owning harness without blocking user updates. A 150-second total timeout is too short for some successful reviews. Empty text output alone is not evidence of idleness because print mode can buffer the entire answer. If no progress is observable, inspect errors and isolate startup with a tiny prompt before retrying once; stop only the owned process. Never retry an already inlined prompt merely because its answer has not appeared.
 - Keep user updates while a job runs. Interpret CLI errors and nonzero status before trusting the text output.
 
 ## REVIEW mode
 
-1. Build the prompt file: relevant context plus the complete artifact and "do NOT read files or run commands". For current code changes, collect `git diff HEAD` and append all untracked files in the review scope; plain `git diff` omits staged and untracked changes. For a committed change, supply its diff and relevant surrounding context.
+1. Build the prompt file: the requirements (spec, issue, user request) plus the complete artifact and "do NOT read files or run commands". For a commit: run any formatter or check that modifies files first, stage, then capture `git diff --cached` and `git status --short` (the unstaged and untracked list, names only). Commit exactly what was reviewed: no `commit -a`, pathspec commits or edits between review and commit. For a committed change, supply its diff and relevant surrounding context.
 2. **Redaction rule (best-evidenced finding in the field, ~2-4x review-quality
    effect): never include the author's self-assessment** — no "tests pass",
    no "I addressed X", no PR-style summary. The reviewer gets artifact +
@@ -83,13 +84,14 @@ Record the exact returned identity and resume only it with the same scope. The c
    substantial reviews typically mix real findings with 1–2 confident misreads
    (verify before "fixing"). Fix what's real.
 6. If REVISE: fix, then resume the exact persistent session with what changed (the diff of
-   the fix, not your reasoning). Cap at 3 rounds; on stalemate, present both
+   the fix, not your reasoning); changes made after a review get their own review. Cap at 3 rounds; on stalemate, present both
    positions to the user instead of looping.
    For high-stakes changes (live-deployed, data-touching), after the loop
    converges run one FRESH session over the final diff — incremental rounds
    anchor on earlier rounds and can rubber-stamp.
-7. Ship-first-review-trailing is acceptable under time pressure, but the
-   verdict must still land; findings become fix-up commits.
+7. Commit with the verdict as a trailer, one line per reviewer:
+   `--trailer 'Reviewed-by: codex APPROVED'`. Under time pressure the review gets
+   shorter, never skipped.
 
 ## IMPLEMENT mode
 
@@ -101,7 +103,7 @@ contracted implementer.
 2. **Acceptance gate**: executable contract the counterpart must satisfy —
    `tests/checks.sh` running contract tests (fixtures from real data; assert
    presence/absence, not exact formatting — leave design room), syntax checks,
-   linters. **Commit spec + gate before the counterpart starts.**
+   linters. **REVIEW spec + gate, then commit them before the counterpart starts.**
 3. Prompt: "Implement `docs/specs/<name>.md`. Iterate until `bash tests/checks.sh`
    exits 0. Do NOT modify anything under tests/. If a test contradicts
    the spec's general behavior, implement the general behavior, leave that
@@ -117,15 +119,25 @@ contracted implementer.
    gap between "asserted" and "well-formed": formatting, races, UX feel,
    and special cases keyed to test values (usually a wrong test or spec).
 6. Fix taste-level issues yourself, verify end-to-end (browser/manual where
-   relevant), commit with authorship noted ("Implemented by the counterpart against
+   relevant). Your review covers the counterpart's diff; your own touch-ups need
+   an independent review too (a fresh subagent or the counterpart in REVIEW mode).
+   Commit with the `Reviewed-by:` trailers and authorship noted ("Implemented by the counterpart against
    `docs/specs/<name>.md`; reviewed and touched up").
 7. For high-stakes work: keep one or two acceptance scenarios OUT of the repo
    (holdout) and check them manually at review time — tests in the tree can be
    gamed even without edits, by bending the implementation around them.
 
+## CODEBASE mode
+
+Before code is first pinned for counted results, a release or a decision, and again before a later pin if the structure changed since: a structure-only review of the whole runnable system, sibling repos and scoring scripts included. Not a diff review; diff reviews per commit stay as before. Reviewers per `ai-tools.md` "Who reviews"; a project's CLAUDE.md may set what counts as a pin and whether a pin gets a second reviewer. For research code, check against `~/.claude/context-coding/research-code.md` plus the project's listed exceptions.
+
+1. Inline the requirements, the README, the file tree and every source file of the runnable system (or as much as fits, with the rest listed); for repos too large to inline, give a reviewer that can read files read-only access instead and say which paths are in scope.
+2. Prompt: "Think like a really grumpy senior engineer who is fed up with AI slop and wants to fully understand every important branching point and architecture decision. For each one: can a skeptical reviewer of the resulting paper or decision get a clear answer from the code and README? List what is redundant, duplicated, dead, unexplained, or more complex than the requirements need." End with `VERDICT: APPROVED` or `VERDICT: REVISE`.
+3. Adjudicate as in REVIEW, then simplify; the simplifications are ordinary commits with their own diff reviews.
+
 ## Known failure modes
 
-- Sandbox startup failure: `sandbox_apply: Operation not permitted` (observed with helper exit 71) means no review occurred. Other sandboxed agent hosts may encounter it too; this has not been verified. See [README.md](README.md#codex-sandbox-startup-failure-september-25-2026) before retrying; do not weaken permissions. A same-family worker can supplement review but leaves required cross-model coverage incomplete.
+- Sandbox startup failure: `sandbox_apply: Operation not permitted` (observed with helper exit 71) means no review occurred. Other sandboxed agent hosts may encounter it too; this has not been verified. See [README.md](README.md#codex-sandbox-startup-failure-september-25-2026) before retrying; do not weaken permissions. A same-family worker can supplement review but leaves cross-model coverage incomplete, unless ai-tools.md "Who reviews" names a fresh Claude subagent for that case.
 - Silent review: distinguish buffered model reasoning from startup/auth/tool-loading failure using streamed events and stderr. Inlining solves missing artifact access, not every cause of delayed output. See the measured Claude setup diagnosis in README.md.
 - The counterpart flagging nonexistent bugs: settle with a test that proves it one way
   or the other, not with argument.
