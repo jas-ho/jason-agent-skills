@@ -100,8 +100,9 @@ prompt per task, then call that script.
 5. **Fire immediately** — no confirmation. Exception: "show me first" /
    "dry run" → print the composed prompt(s) plus resolved agent/dir per task
    and wait. After spawning, report:
-   - one line per window: name, agent, resolved directory, and the script's
-     status (flag any window whose agent did not come up);
+   - one line per window: name, agent, resolved directory, Remote Control
+     on/off (and why, if off), and the script's status (flag any window whose
+     agent did not come up);
    - how to get there: `tmux switch-client -t <session>` (inside tmux) or
      `tmux attach -t <session>` (outside); for delegated windows
      `tmux -L delegated attach -t <session>` (from a plain terminal, not
