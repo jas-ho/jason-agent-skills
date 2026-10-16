@@ -12,7 +12,8 @@
   - any checklist as copyable text;
   - how to get involved.
 - **Verify every link with curl** before publishing. Bot-blocked sites (openai.com returns 403) can be checked through a text proxy.
-- **Local preview first,** then deploy. On cairn: `/srv/<name>/`, a Caddyfile block, validate, reload (see `~/.claude/context-coding/html.md`). Check Tailscale or the network before deploying.
+- **Where it lives:** `~/Code/talks/<slug>/index.html` (one repo for all talk pages, served at `https://talks.jasho.fyi/<slug>/`; add the talk to the root `index.html`). Pick the slug before making the QR code. Commit (reviewed), then `~/Code/talks/deploy.sh`; no Caddy change needed. See the repo README.
+- **Local preview first,** then deploy. Check Tailscale or the network before deploying.
 - **The QR target must be live before the slide with the QR code is final.** Never leave a QR pointing at a dead URL.
 - **After deploying, only re-upload the PDF** when the deck changes.
 - **Final check:** open the actual public PDF, page through it for drafting or private content, and scan the QR code with a phone.
