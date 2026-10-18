@@ -167,6 +167,59 @@ class CommandTests(unittest.TestCase):
         )
         self.assertTrue(any("permission_mode" in e for e in errors))
 
+    def test_codex_approval_and_sandbox(self):
+        fresh = spawn.build_command(
+            "codex",
+            False,
+            None,
+            None,
+            "/tmp/p",
+            approval="never",
+            sandbox="workspace-write",
+        )
+        self.assertIn("codex -a never -s workspace-write", fresh)
+        resumed = spawn.build_command(
+            "codex", False, SID, None, None, approval="never", sandbox="read-only"
+        )
+        self.assertIn("-a never -s read-only", resumed)
+        self.assertIn("resume", resumed)
+        for agent, kwargs in (
+            ("codex", {"approval": "untrusted"}),
+            ("codex", {"sandbox": "danger-full-access"}),
+            ("codex", {"approval": ""}),
+            ("claude", {"approval": "never"}),
+            ("omp", {"sandbox": "workspace-write"}),
+        ):
+            with self.subTest(agent=agent, **kwargs), self.assertRaises(ValueError):
+                spawn.build_command(agent, False, None, None, "/tmp/p", **kwargs)
+        errors = spawn.validate(
+            [
+                {
+                    "name": "a",
+                    "agent": "claude",
+                    "prompt": "x",
+                    "dir": "/",
+                    "approval": "never",
+                },
+                {
+                    "name": "b",
+                    "agent": "codex",
+                    "prompt": "x",
+                    "dir": "/",
+                    "sandbox": "danger-full-access",
+                },
+                {
+                    "name": "c",
+                    "agent": "codex",
+                    "prompt": "x",
+                    "dir": "/",
+                    "approval": "never",
+                    "sandbox": "workspace-write",
+                },
+            ]
+        )
+        self.assertEqual(sum("codex-only" in e for e in errors), 2, errors)
+
     def test_nonclaude_remote_rejected(self):
         for agent in ("codex", "omp"):
             with self.assertRaises(ValueError):

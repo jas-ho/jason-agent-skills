@@ -28,6 +28,8 @@ Manifest: a JSON array of task objects, each:
       "model":  "<model>",            # optional override (claude --model / codex -m)
       "remote": false,                # claude only: enable Remote Control (phone/web)
       "permission_mode": "auto",      # claude only: default | acceptEdits | plan | auto
+      "approval": "never",            # codex only: codex -a (never | on-request)
+      "sandbox": "workspace-write",   # codex only: codex -s (read-only | workspace-write)
       "mode":   "thinking" | "delegated"  # default "thinking"; see below
     }
 
@@ -98,6 +100,9 @@ UUID_RE = re.compile(
 
 # Modes a launch may request; bypassPermissions is deliberately not launchable here.
 PERMISSION_MODES = ("default", "acceptEdits", "plan", "auto")
+# codex -a / -s values this launcher passes; danger-full-access stays a deliberate manual launch.
+CODEX_APPROVALS = ("never", "on-request")
+CODEX_SANDBOXES = ("read-only", "workspace-write")
 
 # Model ids/aliases: letters, digits, then dots/underscores/slashes/colons/dashes.
 MODEL_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/:-]*$")
@@ -261,6 +266,15 @@ def validate(tasks: list) -> list[str]:
             errors.append(
                 f"{where}: 'permission_mode' is claude-only and one of {PERMISSION_MODES}, got {mode!r}"
             )
+        for key, allowed in (
+            ("approval", CODEX_APPROVALS),
+            ("sandbox", CODEX_SANDBOXES),
+        ):
+            value = task.get(key)
+            if value is not None and (agent != "codex" or value not in allowed):
+                errors.append(
+                    f"{where}: {key!r} is codex-only and one of {allowed}, got {value!r}"
+                )
         run_mode = task.get("mode", "thinking")
         if not isinstance(run_mode, str) or run_mode not in MODES:
             errors.append(
@@ -308,12 +322,20 @@ def build_command(
     remote_name: str | None = None,
     permission_mode: str | None = None,
     title: str | None = None,
+    approval: str | None = None,
+    sandbox: str | None = None,
 ) -> str:
     """The bash command string the new pane runs."""
     if agent not in ("claude", "codex", "omp"):
         raise ValueError(f"unsupported agent: {agent}")
     if remote_name and agent != "claude":
         raise ValueError("remote is supported only for Claude")
+    for value, allowed, label in (
+        (approval, CODEX_APPROVALS, "approval policy"),
+        (sandbox, CODEX_SANDBOXES, "sandbox"),
+    ):
+        if value is not None and (agent != "codex" or value not in allowed):
+            raise ValueError(f"unsupported {label} for {agent}: {value!r}")
     if resume:
         if (
             not isinstance(resume, str)
@@ -362,6 +384,10 @@ def build_command(
             launch = f"claude{opt}{arg}"
     elif agent == "codex":
         opt = f" -m {shlex.quote(model)}" if model else ""
+        if approval:
+            opt += f" -a {approval}"
+        if sandbox:
+            opt += f" -s {sandbox}"
         if resume:
             verb = "fork" if branch else "resume"
             # The task's dir is authoritative: without this, resuming a thread whose
@@ -444,6 +470,8 @@ def spawn(task: dict) -> dict:
                 remote_name,
                 task.get("permission_mode"),
                 title=title,
+                approval=task.get("approval"),
+                sandbox=task.get("sandbox"),
             ),
         ]
 
