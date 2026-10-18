@@ -53,8 +53,9 @@ Observed on macOS, codex-cli via volta, ChatGPT-plan auth, June–September 2026
 - `codex login status` can report logged-in after the refresh token was
   revoked (2026-09-08); the first real `codex exec` then fails. Smoke-test
   with a trivial exec after any account change.
-- Background codex jobs finish silently from Claude Code's point of view;
-  poll the output file rather than waiting for a completion signal.
+- The codex plugin's background tasks finish silently from Claude Code's
+  point of view; poll their job state rather than waiting for a signal. A
+  plain `codex exec` in a Bash background task does notify on exit.
 - Backgrounding a _foreground_ codex run from the Claude Code UI can kill it
   silently (0-byte output, stdin/TTY detach). Always launch as a background
   task from the start, with `< /dev/null`.

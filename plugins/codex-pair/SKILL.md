@@ -26,7 +26,7 @@ Requires the counterpart CLI to be authenticated.
 
 Use native workers for ordinary independent research or implementation. Who reviews (the other model family by default, the exceptions, and pins) is decided in `~/.claude/context-coding/ai-tools.md` "Who reviews"; this skill supplies the mechanics. From Codex the cross-model counterpart is Claude; from CC it is Codex; from OMP, a different model family from the current author (Astra → Claude; Claude → Codex). Do not silently change the requested model or call two Astra workers cross-model diversity. The counterpart CLI must already be authenticated; otherwise report the missing login and continue independent work.
 
-Read the following contracts before constructing the actual command. Replace prompt/output paths with unique files per job, keep stdin closed for detached runs, and use the owning harness's background-process mechanism. Track that process and output explicitly; never wait for a completion event the launcher does not provide.
+Read the following contracts before constructing the actual command. Replace prompt/output paths with unique files per job, close stdin with `< /dev/null` on every `codex exec` call unless the prompt is piped in (resume and implementation runs included; open stdin can hang it forever), and use the owning harness's background-process mechanism. Track that process and output explicitly; never wait for a completion event the launcher does not provide.
 
 ### One-shot inlined review
 
