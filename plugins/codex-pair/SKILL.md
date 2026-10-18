@@ -58,6 +58,8 @@ Never use the latest-session selector, an ambiguous nickname, or a parent sessio
 
 The implementation launcher is separate. Set the repository as cwd and use its existing scoped write/test permissions. Codex uses `codex exec -s workspace-write --json` with a persistent thread; Claude uses normal available editing and test tools under the repository's approved permission configuration, with `-p --output-format json`. Do not carry review's empty-tool list, plan mode, read-only sandbox, or ephemeral flags into implementation. Do not bypass permissions to make headless execution succeed. If a required tool remains denied, report that limitation rather than treating a prose-only answer as implementation.
 
+A Codex implementation run uses the long-run launch form in `~/.claude/context-coding/ai-tools.md` (events to `RUN.jsonl`, stderr to `RUN.err`, final message via `-o`); where `codex-watch` exists, start `codex-watch RUN.jsonl --follow` under the harness's monitor right after launching. Resume from inside the repository: `codex exec resume` has no `--cd`.
+
 Record the exact returned identity and resume only it with the same scope. The counterpart never commits unless separately requested. Keep the authored spec and acceptance gate available in the repository.
 
 ### Shared operational rules
