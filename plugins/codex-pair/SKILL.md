@@ -34,17 +34,17 @@ These commands cannot support a later resume because persistence is deliberately
 
 ```bash
 # Claude reviewer, isolated inlined context and no built-in or MCP tools.
-claude -p --safe-mode --strict-mcp-config --no-session-persistence \
-  --tools '' --permission-mode plan --no-chrome --disable-slash-commands \
+timeout 900 claude -p --safe-mode --strict-mcp-config --no-session-persistence \
+  --tools '' --permission-mode default --no-chrome --disable-slash-commands \
   --output-format stream-json --verbose --include-partial-messages \
   -- "$(cat /tmp/review-prompt.txt)" \
   < /dev/null > /tmp/claude-review.jsonl 2> /tmp/claude-review.stderr
 # Codex reviewer, read-only execution and no saved session.
-codex exec --ephemeral -s read-only --skip-git-repo-check \
+timeout 900 codex exec --ephemeral -s read-only --skip-git-repo-check \
   -- "$(cat /tmp/review-prompt.txt)" < /dev/null > /tmp/codex-review.txt 2>&1
 ```
 
-Verify these flags against the installed CLI help. `--tools ''` disables only built-in tools: `--strict-mcp-config` with no supplied servers excludes configured MCP servers. For self-contained reviews, `--safe-mode` also removes unrelated customizations while retaining normal auth, model selection, permissions and managed policy. Inline the relevant project constraints because automatic instruction loading is disabled. Do not substitute `--bare`: it skips subscription OAuth/keychain authentication. If safe mode is unavailable, retain explicit MCP isolation and report any remaining customization load.
+Never start a reviewer in plan mode: with no tools available it loops on plan-mode tool calls it cannot make and never answers (2026-10-19). `timeout` (seconds, set to the review budget below: 900 fits most reviews, give an xhigh plan review 1800) makes a stuck call exit 124 instead of needing a process hunt; treat 124 as a failed review. Verify these flags against the installed CLI help. `--tools ''` disables only built-in tools: `--strict-mcp-config` with no supplied servers excludes configured MCP servers. For self-contained reviews, `--safe-mode` also removes unrelated customizations while retaining normal auth, model selection, permissions and managed policy. Inline the relevant project constraints because automatic instruction loading is disabled. Do not substitute `--bare`: it skips subscription OAuth/keychain authentication. If safe mode is unavailable, retain explicit MCP isolation and report any remaining customization load.
 
 Use unique actual paths rather than these fixed example names. A fresh reviewer can evaluate a subsequent complete artifact, but that is a new review, not a resumed thread.
 
@@ -56,7 +56,7 @@ Never use the latest-session selector, an ambiguous nickname, or a parent sessio
 
 ### Writable implementation
 
-The implementation launcher is separate. Set the repository as cwd and use its existing scoped write/test permissions. Codex uses `codex exec -s workspace-write --json` with a persistent thread; Claude uses normal available editing and test tools under the repository's approved permission configuration, with `-p --output-format json`. Do not carry review's empty-tool list, plan mode, read-only sandbox, or ephemeral flags into implementation. Do not bypass permissions to make headless execution succeed. If a required tool remains denied, report that limitation rather than treating a prose-only answer as implementation.
+The implementation launcher is separate. Set the repository as cwd and use its existing scoped write/test permissions. Codex uses `codex exec -s workspace-write --json` with a persistent thread; Claude uses normal available editing and test tools under the repository's approved permission configuration, with `-p --output-format json`. Do not carry review's empty-tool list, read-only sandbox, or ephemeral flags into implementation. Do not bypass permissions to make headless execution succeed. If a required tool remains denied, report that limitation rather than treating a prose-only answer as implementation.
 
 A Codex implementation run uses the long-run launch form in `~/.claude/context-coding/ai-tools.md` (events to `RUN.jsonl`, stderr to `RUN.err`, final message via `-o`); where `codex-watch` exists, start `codex-watch RUN.jsonl --follow` under the harness's monitor right after launching. Resume from inside the repository: `codex exec resume` has no `--cd`.
 
@@ -67,7 +67,10 @@ Record the exact returned identity and resume only it with the same scope. The c
 - Use the configured default model unless the user selects one or an unavailable default needs a supported replacement.
 - For REVIEW, inline the complete artifact and relevant constraints and say “do not read files or run commands.” For a commit, the artifact is exactly what is staged (`git diff --cached`), shown next to the list of what is left unstaged or untracked (`git status --short`), so the reviewer can flag what is missing as well as what should not go in; add affected interfaces and tests as context. A summary is insufficient. Record the reviewed diff, supplied context, reviewer and verdict in the completion report, and in the commit as `Reviewed-by: <reviewer> <VERDICT>`. Missing context must be supplied before claiming that scope reviewed.
 - Observe streamed progress separately from the final result. Initialization or thinking events prove activity, not completion; require a terminal result with no error and a successful process exit and a substantive response ending in the requested verdict before accepting the review. Preserve stdout and stderr on failure. Extract the final result text for adjudication rather than presenting raw event logs.
-- Choose a bounded review budget proportional to the artifact (for example, ten minutes for a substantial multi-file review), and poll via the owning harness without blocking user updates. A 150-second total timeout is too short for some successful reviews. Empty text output alone is not evidence of idleness because print mode can buffer the entire answer. If no progress is observable, inspect errors and isolate startup with a tiny prompt before retrying once; stop only the owned process. Never retry an already inlined prompt merely because its answer has not appeared.
+- Choose a bounded review budget proportional to the artifact (for example, ten minutes for a substantial multi-file review), enforce it with `timeout`, and poll via the owning harness without blocking user updates. A 150-second total timeout is too short for some successful reviews. Empty text output alone is not evidence of idleness because print mode can buffer the entire answer. If no progress is observable, inspect errors and isolate startup with a tiny prompt before retrying once; stop only the owned process. Never retry an already inlined prompt merely because its answer has not appeared.
+- Effort: Codex's configured default (high) for commit and doc reviews. Pass `-c model_reasoning_effort=xhigh` only for a plan review of a substantial change and the fresh final review of a high-stakes diff.
+- Inlined reviews stay inlined: a reviewer that may read files re-reads the repository every round (400k-950k input tokens per round, measured 2026-10-16). If it needs more context, add those files to the prompt.
+- Ask for everything at once: "List every finding now, prioritised; later rounds only check the fixes and what they touch."
 - Keep user updates while a job runs. Interpret CLI errors and nonzero status before trusting the text output.
 
 ## REVIEW mode
@@ -87,7 +90,9 @@ Record the exact returned identity and resume only it with the same scope. The c
    (verify before "fixing"). Fix what's real.
 6. If REVISE: fix, then resume the exact persistent session with what changed (the diff of
    the fix, not your reasoning: `git diff` of the fix before staging it, plus the refreshed
-   `git status --short`); changes made after a review get their own review, and the
+   `git status --short`), never the whole artifact again. A fresh session (the one-shot
+   launch forms above) gets the current full staged diff plus the prior findings and the fix
+   diff, with "only check the fixes and what they touch". Changes made after a review get their own review, and the
    trailer records the final round's verdict. Cap at 3 rounds; on stalemate, present both
    positions to the user instead of looping.
    For high-stakes changes (live-deployed, data-touching), after the loop
