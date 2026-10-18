@@ -249,7 +249,10 @@ few seconds later, so the user confirms it on their phone or the pane's footer).
 - Don't read the spawned sessions' state by scraping their panes afterwards;
   the child sessions own their work. If the user asks how one is doing,
   `tmux capture-pane -p -t <target> | tail -40` is acceptable for a status
-  glance.
+  glance. For what sits in a session's input box (typed text vs Claude's dim
+  suggestion, or an open question/permission menu), run
+  `agent-input [--host cairn]` instead: plain capture-pane drops the styling
+  that tells them apart.
 
 ## Migration validation (2026-09-12)
 
