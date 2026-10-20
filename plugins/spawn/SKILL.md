@@ -194,7 +194,7 @@ sets `agent` to the resolved current/requested host. Other defaults: `dir`
 current working directory, `branch` `false`, `resume`/`model` unset (CLI picks
 its default model), `remote` `false`, `mode` `"thinking"`, `permission_mode`
 unset (claude only: `default`, `acceptEdits`, `plan` or `auto`; set it only
-when carrying a known mode over, as session-teleport does). `approval` and `sandbox` are unset by default (codex only: `-a never | on-request`, `-s read-only | workspace-write`). An unattended codex, in delegated mode or a long round another session supervises, sets `"approval": "never"` so it never stops at an approval prompt (leave `sandbox` unset: since codex 0.163.0 `-s workspace-write` replaces Jason's `default_permissions` profile in `codex exec`, losing its roots, network and git-dir writes; assumed, not tested, for the TUI); watch and steer it with `codex-watch` and `codex-send` (see `~/.claude/context-coding/ai-tools.md`, "Interactive long runs").
+when carrying a known mode over, as session-teleport does). `approval` and `sandbox` are unset by default (codex only: `-a never | on-request`, `-s read-only | workspace-write`). An unattended codex, in delegated mode or a long round another session supervises, sets `"approval": "never"` so it never stops at an approval prompt (leave `sandbox` unset: `-s workspace-write` replaces Jason's `default_permissions` profile, losing its roots and network, and with `approval: never` nothing can escalate; tested 2026-10-20. Browser-test jobs go to an exec run instead, per ai-tools.md "Long runs"); watch and steer it with `codex-watch` and `codex-send` (see `~/.claude/context-coding/ai-tools.md`, "Interactive long runs").
 
 ## Remote Control
 
