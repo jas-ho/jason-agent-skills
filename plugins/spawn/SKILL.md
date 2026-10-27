@@ -67,6 +67,8 @@ prompt per task, then call that script.
      task. The script pins it against auto-renaming, and fresh/branch Claude
      launches get the title `<session>/<name>` (`claude -n`), so the session
      is findable later with `claude --resume <session>` from that folder.
+     A fresh start from a park block reuses the title, so several sessions
+     can share it; exact recovery uses the UUID in the park block.
    - **Mode**: `"thinking"` (default) for sessions the user steers live; they
      go to the default tmux server. `"delegated"` for research/admin/
      implementation work that runs to a decision point on its own; it goes to
@@ -138,11 +140,22 @@ alone and include:
 - **Hub ownership** — what related work stays in the originating thread, so
   the child doesn't duplicate it.
 - **A clear first action** so the agent starts productively.
-- **Delegated mode only**: end the brief with "Work to a decision point
-  without waiting on the user; collect open questions into one bundle. When
-  you reach a decision point or are done, end with /park."
+- **Verification and risks** — checks already run with results, unresolved
+  risks, and, when this brief continues earlier work, the exact old session
+  UUID with its resume command (from the main session only; inside a subagent
+  the session-ID variables can name the wrong session).
+- **Delegated mode only**: name one deliverable, its acceptance check and its
+  stop condition, then end the brief with these two paragraphs verbatim:
+  "Stop rule: after two failed repair cycles against the same acceptance
+  gate, stop and return the evidence and the open decision; continue only
+  after stating a concrete new hypothesis and the check that would
+  distinguish it. Reuse accepted artifacts; re-review only changed material
+  and affected interfaces. Mandatory independent commit reviews still apply."
+  and "Work to a decision point without waiting on the user; collect open
+  questions into one bundle. When you reach a decision point or are done,
+  end with /park."
 
-Keep it focused — enough to act, not a transcript dump.
+Keep the brief at most 1k tokens: aim for at most 500 words and 4,000 characters including paths and code, less for dense text; link detailed evidence rather than copying it. Fresh mode uses neither `resume` nor `branch`; an explicit user request for either still wins. Design-to-implementation is a natural point to park and continue fresh; the context trial and provider budget live in `~/.claude/context-coding/ai-tools.md`.
 
 ## Manifest format
 
