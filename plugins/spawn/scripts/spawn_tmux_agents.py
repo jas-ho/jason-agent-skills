@@ -83,6 +83,8 @@ import subprocess
 import sys
 import tempfile
 import time
+import uuid
+from pathlib import Path
 
 # Session names that supervised services own; never spawn into them.
 RESERVED_SESSIONS = {"concierge"}
@@ -302,15 +304,66 @@ def validate(tasks: list) -> list[str]:
         if "branch" in task and not isinstance(task["branch"], bool):
             errors.append(f"{where}: 'branch' must be true or false")
         if task.get("branch") and not resume and agent in ("claude", "codex", "omp"):
-            key = {"claude": "CLAUDE_CODE_SESSION_ID", "codex": "CODEX_THREAD_ID"}.get(
-                agent
-            )
-            sid = os.environ.get(key, "").strip() if key else ""
+            branch_key = {
+                "claude": "CLAUDE_CODE_SESSION_ID",
+                "codex": "CODEX_THREAD_ID",
+            }.get(agent)
+            sid = os.environ.get(branch_key, "").strip() if branch_key else ""
             if not UUID_RE.fullmatch(sid):
                 errors.append(
                     f"{where}: branch needs an exact owning session UUID; provide resume explicitly or use fresh mode"
                 )
     return errors
+
+
+def codex_registration(
+    branch: bool, resume: str | None, prompt: str
+) -> tuple[dict, str]:
+    """Versioned contract with ~/bin/codex-watch; no promptless fork turn."""
+    identity = (
+        resume or (os.environ.get("CODEX_THREAD_ID", "") if branch else "")
+    ).strip()
+    seed: dict = {
+        "version": 1,
+        "launch_id": uuid.uuid4().hex,
+        "mode": "fork" if branch else "resume" if resume else "fresh",
+    }
+    if identity:
+        seed["parent_id" if branch else "resume_id"] = identity
+    if prompt.strip() and seed["mode"] != "resume":
+        seed["marker"] = f"[codex-spawn:{seed['launch_id']}]"
+        prompt = prompt.rstrip() + "\n\n" + seed["marker"]
+    return seed, prompt
+
+
+def register_codex(seed: dict) -> int:
+    """Run inside the pane before Codex; tmux state only, no Codex config writes."""
+    try:
+        pane = os.environ["TMUX_PANE"]
+        root = tmux("display", "-p", "-t", pane, "#{pane_pid}")
+        if root.returncode or not root.stdout.strip().isdigit():
+            raise RuntimeError("cannot read tmux pane PID")
+        record = dict(
+            seed,
+            pane_pid=int(root.stdout.strip()),
+            started_at=time.time(),
+            cwd=os.path.realpath(os.getcwd()),
+            codex_home=os.path.realpath(
+                os.environ.get("CODEX_HOME", str(Path.home() / ".codex"))
+            ),
+        )
+        result = tmux(
+            "set-option", "-p", "-t", pane, "@codex-spawn", json.dumps(record)
+        )
+        if result.returncode:
+            raise RuntimeError(result.stderr.strip())
+    except (KeyError, OSError, RuntimeError) as exc:
+        print(
+            f"spawn: Codex identity registration unavailable: {exc}; use --thread",
+            file=sys.stderr,
+        )
+        return 1
+    return 0
 
 
 def build_command(
@@ -324,6 +377,7 @@ def build_command(
     title: str | None = None,
     approval: str | None = None,
     sandbox: str | None = None,
+    codex_record: dict | None = None,
 ) -> str:
     """The bash command string the new pane runs."""
     if agent not in ("claude", "codex", "omp"):
@@ -421,9 +475,21 @@ def build_command(
         preserve = f"printf 'Handoff brief preserved at %s\\n' {pf}; "
     else:
         read_prompt, on_success, preserve = "", ":", ""
+    registration = ""
+    if agent == "codex" and codex_record is not None:
+        helper = shlex.join(
+            [
+                sys.executable,
+                str(Path(__file__).resolve()),
+                "--register-codex",
+                json.dumps(codex_record),
+            ]
+        )
+        registration = f"{helper} || printf '%s\\n' 'spawn: identity unavailable; pass --thread to watch/send' >&2\n"
     return (
         'export PATH="$HOME/.local/bin:$HOME/bin:$PATH"\n'
         f"{read_prompt}"
+        f"{registration}"
         f"if {launch}; then {on_success}; else st=$?; echo; "
         f'echo "{agent} exited with status $st."; '
         f"{preserve}"
@@ -453,6 +519,9 @@ def spawn(task: dict) -> dict:
     promptfile = None
     if agent != "none":
         prompt = str(task.get("prompt") or "")
+        codex_record = None
+        if agent == "codex":
+            codex_record, prompt = codex_registration(branch, resume, prompt)
         if prompt.strip():
             fd, promptfile = tempfile.mkstemp(prefix="spawn-prompt.")
             with os.fdopen(fd, "w") as fh:
@@ -472,6 +541,7 @@ def spawn(task: dict) -> dict:
                 title=title,
                 approval=task.get("approval"),
                 sandbox=task.get("sandbox"),
+                codex_record=codex_record,
             ),
         ]
 
@@ -635,6 +705,8 @@ def check_status(entry: dict) -> str:
 
 
 def main() -> int:
+    if len(sys.argv) == 3 and sys.argv[1] == "--register-codex":
+        return register_codex(json.loads(sys.argv[2]))
     if len(sys.argv) != 2:
         print(__doc__, file=sys.stderr)
         return 2

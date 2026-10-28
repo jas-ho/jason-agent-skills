@@ -54,6 +54,18 @@ class CommandTests(unittest.TestCase):
             with self.subTest(agent=agent):
                 self.assertEqual(self.captured(agent), ["--", self.message])
 
+    def test_non_codex_idle_constructor_is_unchanged(self):
+        for agent in ("claude", "omp"):
+            expected = (
+                'export PATH="$HOME/.local/bin:$HOME/bin:$PATH"\n'
+                f"if {agent}; then :; else st=$?; echo; "
+                f'echo "{agent} exited with status $st."; '
+                'echo "Press any key to close this window."; read -r -n1; fi'
+            )
+            self.assertEqual(
+                spawn.build_command(agent, False, None, None, None), expected
+            )
+
     def test_flag_shaped_prompt_remains_positional(self):
         original = self.prompt.read_text()
         try:
@@ -357,6 +369,70 @@ class CommandTests(unittest.TestCase):
     def test_scope_prefix_empty_off_linux(self):
         with patch.object(spawn.sys, "platform", "darwin"):
             self.assertEqual(spawn.server_scope_prefix(), [])
+
+
+class IdentityTests(unittest.TestCase):
+    def test_modes_markers_and_normalized_parent(self):
+        fresh, prompt = spawn.codex_registration(False, None, "brief")
+        self.assertEqual(fresh["mode"], "fresh")
+        self.assertTrue(prompt.endswith("\n\n" + fresh["marker"]))
+        with patch.dict(os.environ, {"CODEX_THREAD_ID": " " + SID + "\n"}):
+            fork, empty = spawn.codex_registration(True, None, "")
+        self.assertEqual(fork["parent_id"], SID)
+        self.assertEqual(empty, "")
+        self.assertNotIn("marker", fork)
+        resume, prompt = spawn.codex_registration(False, SID, "literal")
+        self.assertEqual(resume["resume_id"], SID)
+        self.assertEqual(prompt, "literal")
+        self.assertNotIn("marker", resume)
+
+    def test_runtime_registration_uses_tmux_root_and_effective_home(self):
+        seed, _ = spawn.codex_registration(False, None, "brief")
+        result = subprocess.CompletedProcess([], 0, "12345\n", "")
+        with (
+            patch.dict(
+                os.environ, {"TMUX_PANE": "%7", "CODEX_HOME": "/tmp/custom ' home"}
+            ),
+            patch.object(spawn, "tmux", return_value=result) as call,
+        ):
+            self.assertEqual(spawn.register_codex(seed), 0)
+        self.assertEqual(
+            call.call_args_list[0].args, ("display", "-p", "-t", "%7", "#{pane_pid}")
+        )
+        args = call.call_args_list[1].args
+        self.assertEqual(args[:5], ("set-option", "-p", "-t", "%7", "@codex-spawn"))
+        record = json.loads(args[-1])
+        self.assertEqual(record["pane_pid"], 12345)
+        self.assertEqual(record["codex_home"], os.path.realpath("/tmp/custom ' home"))
+        self.assertEqual(record["cwd"], os.path.realpath(os.getcwd()))
+        self.assertGreater(record["started_at"], 0)
+        with (
+            patch.dict(os.environ, {"TMUX_PANE": "%7"}),
+            patch.object(
+                spawn,
+                "tmux",
+                return_value=subprocess.CompletedProcess([], 1, "", "fail"),
+            ),
+        ):
+            self.assertEqual(spawn.register_codex(seed), 1)
+
+    def test_wrapper_order_and_json_quoting(self):
+        seed, _ = spawn.codex_registration(False, None, "brief")
+        command = spawn.build_command(
+            "codex", False, None, None, "/tmp/brief 'quoted", codex_record=seed
+        )
+        self.assertLess(
+            command.index('prompt="$(cat'), command.index("--register-codex")
+        )
+        self.assertLess(
+            command.index("--register-codex"), command.index('if codex -- "$prompt"')
+        )
+        helper = next(
+            line for line in command.splitlines() if "--register-codex" in line
+        )
+        argv = shlex.split(helper.split(" || ", 1)[0])
+        self.assertEqual(json.loads(argv[-1]), seed)
+        self.assertIn("identity unavailable", helper)
 
 
 if __name__ == "__main__":
