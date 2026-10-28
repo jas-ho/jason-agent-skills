@@ -13,14 +13,14 @@ Requires the counterpart CLI to be authenticated.
 
 ## Routing
 
-| Situation                                                                                      | Mode                                                                          |
-| ---------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| Situation                                                                                       | Mode                                                                          |
+| ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
 | Anything staged for a commit (every commit; the commit hook refuses one without `Reviewed-by:`) | REVIEW                                                                        |
-| Plan, spec, or subagent prompt worth stress-testing                                            | REVIEW (plans benefit most — catches second-order effects before code exists) |
-| Well-specifiable feature, testable contract, ≥~3 files or mechanical breadth                   | IMPLEMENT                                                                     |
-| Small diff (≤2 files, ≤~30 lines), design/UI judgment, needs interactive verification mid-loop | implement with the current agent; REVIEW before the commit                    |
-| Code about to be pinned for counted results, a release or a decision                           | CODEBASE                                                                      |
-| Stuck after 2 failed attempts                                                                  | fresh-eyes diagnosis: REVIEW-style prompt asking for root cause, not fixes    |
+| Plan, spec, or subagent prompt worth stress-testing                                             | REVIEW (plans benefit most — catches second-order effects before code exists) |
+| Well-specifiable feature, testable contract, ≥~3 files or mechanical breadth                    | IMPLEMENT                                                                     |
+| Small diff (≤2 files, ≤~30 lines), design/UI judgment, needs interactive verification mid-loop  | implement with the current agent; REVIEW before the commit                    |
+| Code about to be pinned for counted results, a release or a decision                            | CODEBASE                                                                      |
+| Stuck after 2 failed attempts                                                                   | fresh-eyes diagnosis: REVIEW-style prompt asking for root cause, not fixes    |
 
 ## Harness routing and invocation
 
@@ -30,7 +30,7 @@ Read the following contracts before constructing the actual command. Replace pro
 
 ### One-shot inlined review
 
-These commands cannot support a later resume because persistence is deliberately off:
+These direct inlined commands cannot support a later resume because persistence is deliberately off. For a staged commit, use `codex-run review-staged --cwd REPO --prompt-file FILE`: it captures only the staged artifact plus status and keeps metadata for an exact resume. The assembled prompt is capped at 100 KiB; split larger reviews. Check its staged hash before committing, per `~/.claude/codex-profiles/README.md`.
 
 ```bash
 # Claude reviewer, isolated inlined context and no built-in or MCP tools.
@@ -39,9 +39,11 @@ timeout 900 claude -p --safe-mode --strict-mcp-config --no-session-persistence \
   --output-format stream-json --verbose --include-partial-messages \
   -- "$(cat /tmp/review-prompt.txt)" \
   < /dev/null > /tmp/claude-review.jsonl 2> /tmp/claude-review.stderr
-# Codex reviewer, read-only execution and no saved session.
-timeout 900 codex exec --ephemeral -s read-only --skip-git-repo-check \
-  -- "$(cat /tmp/review-prompt.txt)" < /dev/null > /tmp/codex-review.txt 2>&1
+# Codex plan/spec reviewer, read-only execution and no saved session.
+# For staged commits use codex-run review-staged --cwd REPO --prompt-file FILE.
+test -s /tmp/review-prompt.txt && timeout 900 codex exec --ephemeral -s read-only \
+  --cd "$PWD" --skip-git-repo-check --json -o /tmp/codex-review.md \
+  -- "$(cat /tmp/review-prompt.txt)" < /dev/null > /tmp/codex-review.jsonl 2> /tmp/codex-review.err
 ```
 
 Never start a reviewer in plan mode: with no tools available it loops on plan-mode tool calls it cannot make and never answers (2026-10-19). `timeout` (seconds, set to the review budget below: 900 fits most reviews, give an xhigh plan review 1800) makes a stuck call exit 124 instead of needing a process hunt; treat 124 as a failed review. Verify these flags against the installed CLI help. `--tools ''` disables only built-in tools: `--strict-mcp-config` with no supplied servers excludes configured MCP servers. For self-contained reviews, `--safe-mode` also removes unrelated customizations while retaining normal auth, model selection, permissions and managed policy. Inline the relevant project constraints because automatic instruction loading is disabled. Do not substitute `--bare`: it skips subscription OAuth/keychain authentication. If safe mode is unavailable, retain explicit MCP isolation and report any remaining customization load.
@@ -50,15 +52,15 @@ Use unique actual paths rather than these fixed example names. A fresh reviewer 
 
 ### Persistent review rounds
 
-When follow-up rounds are planned, keep persistence from the first call. For Claude omit `--no-session-persistence`, retain the isolation, tool restrictions and streaming flags above, and record the returned `session_id`. Follow up with `claude -p --resume <exact-id>` and the same restrictions. For Codex omit `--ephemeral`, retain read-only permissions, and request `--json`; capture the returned thread identity from the installed CLI's event schema. Follow up with `codex exec -s read-only resume <exact-id>` (the flag goes before `resume`; without it the thread resumes under the full permission profile). Verify supported options on the installed CLI before constructing a resume command; options are not identical between initial exec and resume.
+When follow-up rounds are planned, keep persistence from the first call. For Claude omit `--no-session-persistence`, retain the isolation, tool restrictions and streaming flags above, and record the returned `session_id`. Follow up with `claude -p --resume <exact-id>` and the same restrictions. For staged Codex review rounds use `codex-run review-staged`, then `codex-run resume RUN.meta.json --prompt-file FILE`; it retains the explicit read-only policy and refuses a changed staged artifact. For direct plan/spec rounds omit `--ephemeral`, retain read-only permissions and closed stdin, request `--json`, and record the exact thread ID, cwd, policy and output paths. Verify resume flags against installed help; `-s` belongs before `resume` (omitting it can restore a writable default), and non-git resume needs `--skip-git-repo-check`. Prefer the launcher wherever its mode fits.
 
 Never use the latest-session selector, an ambiguous nickname, or a parent session inferred from newest-file timestamps. Missing identity means a fresh review with complete context or an explicit failure to resume, not a guessed continuation. Do not resume a thread still owned by another running process.
 
 ### Writable implementation
 
-The implementation launcher is separate. Set the repository as cwd and use its existing scoped write/test permissions. Codex uses `codex exec --json` without `-s`, or with `-s workspace-write` when the job needs headless Chrome (the trade-off is in ai-tools.md, "Long runs"), with a persistent thread; for a linked worktree, `--cd` and resume from the main checkout and name the worktree path in the prompt; Claude uses normal available editing and test tools under the repository's approved permission configuration, with `-p --output-format json`. Do not carry review's empty-tool list, read-only sandbox, or ephemeral flags into implementation. Do not bypass permissions to make headless execution succeed. If a required tool remains denied, report that limitation rather than treating a prose-only answer as implementation.
+Use `codex-run implement --cwd REPO --prompt-file FILE` for a bounded Codex implementation, or `codex-run browser` for Mac browser acceptance. The host table in `~/.claude/context-coding/ai-tools.md` is authoritative: Mac explicitly selects `jason`; cairn needs its `implement.config.toml`, because plain exec there is read-only. For a Mac linked worktree, launch from the main checkout and name the worktree in the prompt. Supervisor-owned steps include SSH, protected config writes, launchd/systemd, heavy-run and any denied acceptance check. Claude uses its normal editing/test permissions with `-p --output-format json`. Only implement accepts `--add-dir` for required cache/output directories. Research on either host needs its installed profile, or the reviewed `--profile-source` before installation. Do not carry review's empty-tool list, read-only sandbox or ephemeral flags into implementation, or bypass permissions to make it succeed.
 
-A Codex implementation run uses the long-run launch form in `~/.claude/context-coding/ai-tools.md` (events to `RUN.jsonl`, stderr to `RUN.err`, final message via `-o`); where `codex-watch` exists, start `codex-watch RUN.jsonl --follow` under the harness's monitor right after launching. Resume from inside the repository (the main checkout for a worktree job): `codex exec resume` has no `--cd`, and a job launched with `-s workspace-write` resumes as `codex exec -s workspace-write resume ...`.
+The launcher prints metadata and a `codex-watch` command before startup; start the watcher under the harness monitor. Resume with `codex-run resume RUN.meta.json --prompt-file FILE`, which keeps recorded policy/cwd/model/roots and creates fresh logs. Say “running” only after `thread.started`, and require a successful exit, terminal event and final answer. Read the report to determine whether the acceptance gate actually passed. For failed/cancelled runs inspect metadata state/error/child exit and the `.err` file; without a recorded thread, start a fresh job. Exit meanings and plugin rescue watching (completed/failed/cancelled) are in ai-tools.md and the profile README.
 
 Record the exact returned identity and resume only it with the same scope. The counterpart never commits unless separately requested. Keep the authored spec and acceptance gate available in the repository.
 
@@ -147,7 +149,8 @@ Before code is first pinned for counted results, a release or a decision, and ag
 ## Known failure modes
 
 - Sandbox startup failure: `sandbox_apply: Operation not permitted` (observed with helper exit 71) means no review occurred. Other sandboxed agent hosts may encounter it too; this has not been verified. See [README.md](README.md#codex-sandbox-startup-failure-september-25-2026) before retrying; do not weaken permissions. A same-family worker can supplement review but leaves cross-model coverage incomplete; fall back per ai-tools.md "Who reviews" and name the gap in the report.
-- Writing run fails with EPERM on `~/.cache/uv` or `.git/.../index.lock`, or DNS fails: with `-s workspace-write` the base policy blocks these until an escalation is approved (check the rollout for a refused or missing escalation); or the cwd is a linked worktree whose git dir lives in the main checkout. If the job needs no Chrome, relaunch without `-s`, `--cd` on the main checkout, worktree path named in the prompt. Headless Chrome aborting (SIGABRT) without `-s` needs the `-s workspace-write` route instead (ai-tools.md, "Long runs").
+- App-server initialization EPERM before `thread.started` occurred in the restricted Mac Codex supervisor on 2026-10-28. No model run started and no thread exists to resume; retain stderr and request a fresh launch from the supervising session with the needed capabilities. Do not weaken permissions.
+- Writing/network or browser acceptance fails: check the selected host/mode and recorded policy in `codex-run` metadata against the table in ai-tools.md. Cairn plain exec is read-only. Do not mechanically “drop -s” there. Use implement `--add-dir` for required cache/output roots. Linked-worktree git writes on either host and Mac browser escalation can need supervisor completion; report the exact denied acceptance step.
 - Silent review: distinguish buffered model reasoning from startup/auth/tool-loading failure using streamed events and stderr. Inlining solves missing artifact access, not every cause of delayed output. See the measured Claude setup diagnosis in README.md.
 - The counterpart flagging nonexistent bugs: settle with a test that proves it one way
   or the other, not with argument.
