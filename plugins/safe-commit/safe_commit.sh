@@ -111,16 +111,21 @@ preflight_checks() {
     fi
 
     local staged_files
-    staged_files=$(git diff --cached --name-only --diff-filter=ACM)
+    staged_files=$(git diff --cached --name-only --diff-filter=ACMR)
 
-    if [ -z "$staged_files" ]; then
-        log_error "No staged files found"
-        echo "ERROR: No staged files found"
-        exit 1
-    fi
+    # Check every candidate before any formatter can change or re-stage a file.
+    local file
+    while IFS= read -r file; do
+        if [ -n "$file" ] && ! git diff --quiet -- "$GIT_ROOT/$file"; then
+            log_error "Staged file has unstaged changes: $file"
+            echo "ERROR: Staged file has unstaged changes: $file"
+            exit 1
+        fi
+    done <<<"$staged_files"
 
     local num_files
-    num_files=$(echo "$staged_files" | wc -l | tr -d ' ')
+    # Deletions count as changes but have no working-tree file to validate.
+    num_files=$(git diff --cached --name-only | wc -l | tr -d ' ')
     log_success "Found $num_files staged file(s)"
 
     echo "$staged_files"
@@ -526,7 +531,7 @@ main() {
     done <<<"$STAGED_FILES"
 
     # Refresh staged files (may have changed after auto-fix)
-    STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM)
+    STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACMR)
 
     # Validation by type - just show output, don't count errors
     log_info "Running validators..."
@@ -559,7 +564,7 @@ main() {
     # Report
     echo ""
     echo "=== Summary ==="
-    NUM_FILES=$(echo "$STAGED_FILES" | wc -l | tr -d ' ')
+    NUM_FILES=$(git diff --cached --name-only | wc -l | tr -d ' ')
     echo "Files staged: $NUM_FILES"
 
     # Hard block on local files
