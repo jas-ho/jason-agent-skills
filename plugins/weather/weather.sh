@@ -127,17 +127,17 @@ DATA=$(curl -s --max-time 10 "${API_URL}?${PARAMS}" 2>/dev/null) || {
     exit 1
 }
 
-# === RAW OUTPUT MODE ===
-if $RAW_OUTPUT; then
-    echo "$DATA" | jq .
-    exit 0
-fi
-
 # === CHECK FOR ERRORS ===
 if echo "$DATA" | jq -e '.error' > /dev/null 2>&1; then
     echo "Error from API:"
     echo "$DATA" | jq -r '.reason // .error'
     exit 1
+fi
+
+# === RAW OUTPUT MODE ===
+if $RAW_OUTPUT; then
+    echo "$DATA" | jq .
+    exit 0
 fi
 
 # === WEATHER CODE TO DESCRIPTION ===
