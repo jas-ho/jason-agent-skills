@@ -232,14 +232,19 @@ get_snow_depth() {
     local depth
     depth=$(echo "$response" | tail -1 | cut -d',' -f2 | tr -d ' ')
 
-    if [[ -z "$depth" || "$depth" == "snow_depth" ]]; then
-        # No data available (header only or empty)
+    if ! [[ "$depth" =~ ^([0-9]+(\.[0-9]+)?|\.[0-9]+)$ ]]; then
+        # Missing, non-finite, malformed or negative measurements are unavailable.
         echo "N/A"
         return 1
-    else
-        # Convert from meters to cm
-        printf "%.0f" "$(echo "$depth * 100" | bc -l 2>/dev/null || echo "0")"
     fi
+
+    # Convert from meters to cm without treating a failed conversion as zero.
+    local cm
+    if ! cm=$(echo "$depth * 100" | bc -l 2>/dev/null) || [[ -z "$cm" ]]; then
+        echo "N/A"
+        return 1
+    fi
+    LC_NUMERIC=C printf "%.0f" "$cm"
 }
 
 # Get weather forecast from Open-Meteo ICON-D2
@@ -342,12 +347,15 @@ show_location() {
     echo "─────────────────────────────────────────────────────────────────"
     local weather_json
     if weather_json=$(get_weather "$lat" "$lon"); then
-        # Show next 12 hours in compact format (single jq call instead of 60)
+        # Match the forecast's timezone, including when the host uses another one.
+        local now
+        now=$(TZ=Europe/Vienna date +%Y-%m-%dT%H:%M)
+        # Show the next 12 available hourly entries, keeping their original indices.
         echo "   Hour  Temp   Wind    Cloud  Precip%"
-        echo "$weather_json" | jq -r '
+        echo "$weather_json" | jq -r --arg now "$now" '
             . as $root |
-            range(12) |
-            . as $i |
+            [.hourly.time | to_entries[] | select(.value >= $now)] | .[:12][] |
+            .key as $i |
             ($root.hourly.time[$i] // empty) as $time |
             if $time then
                 ($time | split("T")[1] | split(":")[0] | ltrimstr("0") | if . == "" then "0" else . end) as $hour |
