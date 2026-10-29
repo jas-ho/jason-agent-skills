@@ -30,7 +30,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from typing import Optional
+from typing import NoReturn, Optional
 
 import typer
 
@@ -40,13 +40,31 @@ PARAKEET_MODEL = "mlx-community/parakeet-tdt-0.6b-v3"
 WHISPER_MODEL = "mlx-community/whisper-large-v3-turbo"
 FORMATS = ("txt", "srt", "vtt", "json")
 MEDIA_EXTS = {
-    "mp4", "mkv", "mov", "webm", "avi", "flv", "m4v", "mpg", "mpeg", "wmv",
-    "mp3", "m4a", "wav", "flac", "ogg", "opus", "aac", "wma", "aiff",
+    "mp4",
+    "mkv",
+    "mov",
+    "webm",
+    "avi",
+    "flv",
+    "m4v",
+    "mpg",
+    "mpeg",
+    "wmv",
+    "mp3",
+    "m4a",
+    "wav",
+    "flac",
+    "ogg",
+    "opus",
+    "aac",
+    "wma",
+    "aiff",
 }
 
 
 class AcquisitionError(Exception):
     """A download failed in a way the caller may recover from (e.g. fallback)."""
+
 
 # module-level verbosity, set in main()
 _QUIET = False
@@ -64,7 +82,7 @@ def warn(msg: str) -> None:
     print(f"warning: {msg}", file=sys.stderr, flush=True)
 
 
-def die(msg: str, code: int = 1) -> "NoReturn":  # type: ignore[name-defined]
+def die(msg: str, code: int = 1) -> NoReturn:
     print(f"error: {msg}", file=sys.stderr, flush=True)
     raise typer.Exit(code)
 
@@ -190,9 +208,21 @@ def _curl(url: str, dest: Path, jar: Path) -> subprocess.CompletedProcess:
     # stalled transfer (< 1KB/s for 60s) without capping a slow large download.
     return _run(
         [
-            "curl", "-sSL", "--connect-timeout", "30",
-            "--speed-limit", "1024", "--speed-time", "60",
-            "-c", str(jar), "-b", str(jar), "-o", str(dest), url,
+            "curl",
+            "-sSL",
+            "--connect-timeout",
+            "30",
+            "--speed-limit",
+            "1024",
+            "--speed-time",
+            "60",
+            "-c",
+            str(jar),
+            "-b",
+            str(jar),
+            "-o",
+            str(dest),
+            url,
         ],
         capture=True,
     )
@@ -265,7 +295,12 @@ def download_gdrive(url: str, tmp: Path, *, direct: bool = False) -> Path:
             retry = f"{base}&confirm={confirm}" + (f"&uuid={uuid}" if uuid else "")
             log("clearing Drive virus-scan interstitial")
             cp = _curl(retry, dest, jar)
-        if cp.returncode != 0 or not dest.exists() or dest.stat().st_size == 0 or _is_html(dest):
+        if (
+            cp.returncode != 0
+            or not dest.exists()
+            or dest.stat().st_size == 0
+            or _is_html(dest)
+        ):
             die(
                 "Google Drive returned a web page, not a media file. The link is "
                 "private, view-only (download disabled), or rate-limited (too many "
@@ -275,7 +310,9 @@ def download_gdrive(url: str, tmp: Path, *, direct: bool = False) -> Path:
     return dest
 
 
-def acquire(kind: str, source: str, tmp: Path, *, drive_direct: bool = False) -> tuple[Path, str]:
+def acquire(
+    kind: str, source: str, tmp: Path, *, drive_direct: bool = False
+) -> tuple[Path, str]:
     """Return (media_path, slug). Local inputs are never copied or modified."""
     if kind == "local":
         p = Path(source)
@@ -309,8 +346,16 @@ def _slugify(stem: str) -> str:
 def has_audio_stream(path: Path) -> bool:
     cp = _run(
         [
-            "ffprobe", "-v", "error", "-select_streams", "a",
-            "-show_entries", "stream=codec_type", "-of", "csv=p=0", str(path),
+            "ffprobe",
+            "-v",
+            "error",
+            "-select_streams",
+            "a",
+            "-show_entries",
+            "stream=codec_type",
+            "-of",
+            "csv=p=0",
+            str(path),
         ],
         capture=True,
     )
@@ -335,14 +380,29 @@ def to_wav(media: Path, tmp: Path, slug: str) -> Path:
             f"{media.name!r} has no audio track to transcribe "
             "(e.g. a silent screen recording)."
         )
-    wav = tmp / f"{slug}.wav"
+    wav_dir = Path(tempfile.mkdtemp(prefix="wav-", dir=tmp))
+    wav = wav_dir / f"{slug}.wav"
     log("converting to 16kHz mono wav")
-    cmd = ["ffmpeg", "-nostdin", "-y", "-i", str(media), "-vn", "-ar", "16000", "-ac", "1", str(wav)]
+    cmd = [
+        "ffmpeg",
+        "-nostdin",
+        "-y",
+        "-i",
+        str(media),
+        "-vn",
+        "-ar",
+        "16000",
+        "-ac",
+        "1",
+        str(wav),
+    ]
     if not _VERBOSE:
         cmd[1:1] = ["-loglevel", "error"]
     cp = _run(cmd, capture=not _VERBOSE)
     if cp.returncode != 0 or not wav.exists() or wav.stat().st_size == 0:
-        detail = (cp.stderr or "").strip() if hasattr(cp, "stderr") and cp.stderr else ""
+        detail = (
+            (cp.stderr or "").strip() if hasattr(cp, "stderr") and cp.stderr else ""
+        )
         die(f"ffmpeg failed to extract audio{': ' + detail if detail else ''}")
     return wav
 
@@ -362,25 +422,50 @@ def resolve_engine(model: str) -> tuple[str, str]:
     return "parakeet", model
 
 
-def transcribe(wav: Path, engine: str, hf_model: str, fmt: str, language: Optional[str], outdir: Path) -> None:
+def transcribe(
+    wav: Path,
+    engine: str,
+    hf_model: str,
+    fmt: str,
+    language: Optional[str],
+    outdir: Path,
+) -> None:
     # both MLX engines run via uvx (lazy, not in the script's deps)
     if shutil.which("uvx") is None:
-        die("uvx not found; needed to run the MLX engines. Install uv: https://docs.astral.sh/uv/")
+        die(
+            "uvx not found; needed to run the MLX engines. Install uv: https://docs.astral.sh/uv/"
+        )
     if engine == "parakeet":
         if language:
-            warn("parakeet auto-detects language; --language is ignored. Use --model whisper to force a language.")
+            warn(
+                "parakeet auto-detects language; --language is ignored. Use --model whisper to force a language."
+            )
         cmd = [
-            "uvx", "--from", "parakeet-mlx>=0.3", "parakeet-mlx", str(wav),
-            "--model", hf_model,
-            "--output-dir", str(outdir),
-            "--output-format", fmt,
+            "uvx",
+            "--from",
+            "parakeet-mlx>=0.3",
+            "parakeet-mlx",
+            str(wav),
+            "--model",
+            hf_model,
+            "--output-dir",
+            str(outdir),
+            "--output-format",
+            fmt,
         ]
     else:  # whisper
         cmd = [
-            "uvx", "--from", "mlx-whisper>=0.4", "mlx_whisper", str(wav),
-            "--model", hf_model,
-            "--output-dir", str(outdir),
-            "--output-format", fmt,
+            "uvx",
+            "--from",
+            "mlx-whisper>=0.4",
+            "mlx_whisper",
+            str(wav),
+            "--model",
+            hf_model,
+            "--output-dir",
+            str(outdir),
+            "--output-format",
+            fmt,
         ]
         if language:
             cmd += ["--language", language]
@@ -391,7 +476,9 @@ def transcribe(wav: Path, engine: str, hf_model: str, fmt: str, language: Option
     cp = _run(cmd, capture=_QUIET)
     if cp.returncode != 0:
         detail = (cp.stderr or cp.stdout or "").strip() if _QUIET else ""
-        die(f"{engine} transcription failed{': ' + detail[-500:] if detail else ' (see logs above)'}")
+        die(
+            f"{engine} transcription failed{': ' + detail[-500:] if detail else ' (see logs above)'}"
+        )
 
 
 # --------------------------------------------------------------------------- #
@@ -399,16 +486,50 @@ def transcribe(wav: Path, engine: str, hf_model: str, fmt: str, language: Option
 # --------------------------------------------------------------------------- #
 @app.command()
 def main(
-    source: str = typer.Argument(..., help="A URL (Loom, YouTube, Google Drive, ...) or a local audio/video file."),
-    model: str = typer.Option("parakeet", "--model", "-m", help="parakeet (default), whisper, or a HuggingFace model id."),
-    fmt: str = typer.Option("txt", "--format", "-f", help="Output format: txt, srt, vtt, json."),
-    output_dir: Path = typer.Option(Path.cwd(), "--output-dir", "-o", help="Directory for the transcript (default: cwd)."),
-    language: Optional[str] = typer.Option(None, "--language", "-l", help="Language code (whisper only; parakeet auto-detects)."),
-    keep_media: bool = typer.Option(False, "--keep-media", help="Keep the downloaded audio file in the output dir (audio only, not video)."),
-    drive_direct: bool = typer.Option(False, "--drive-direct", help="For a Google Drive URL, skip yt-dlp and download directly (use if yt-dlp fails)."),
-    force: bool = typer.Option(False, "--force", help="Overwrite an existing transcript."),
-    quiet: bool = typer.Option(False, "--quiet", "-q", help="Suppress progress logs (errors still shown)."),
-    verbose: bool = typer.Option(False, "--verbose", "-v", help="Show full download/transcribe output."),
+    source: str = typer.Argument(
+        ...,
+        help="A URL (Loom, YouTube, Google Drive, ...) or a local audio/video file.",
+    ),
+    model: str = typer.Option(
+        "parakeet",
+        "--model",
+        "-m",
+        help="parakeet (default), whisper, or a HuggingFace model id.",
+    ),
+    fmt: str = typer.Option(
+        "txt", "--format", "-f", help="Output format: txt, srt, vtt, json."
+    ),
+    output_dir: Path = typer.Option(
+        Path.cwd(),
+        "--output-dir",
+        "-o",
+        help="Directory for the transcript (default: cwd).",
+    ),
+    language: Optional[str] = typer.Option(
+        None,
+        "--language",
+        "-l",
+        help="Language code (whisper only; parakeet auto-detects).",
+    ),
+    keep_media: bool = typer.Option(
+        False,
+        "--keep-media",
+        help="Keep the downloaded audio file in the output dir (audio only, not video).",
+    ),
+    drive_direct: bool = typer.Option(
+        False,
+        "--drive-direct",
+        help="For a Google Drive URL, skip yt-dlp and download directly (use if yt-dlp fails).",
+    ),
+    force: bool = typer.Option(
+        False, "--force", help="Overwrite an existing transcript."
+    ),
+    quiet: bool = typer.Option(
+        False, "--quiet", "-q", help="Suppress progress logs (errors still shown)."
+    ),
+    verbose: bool = typer.Option(
+        False, "--verbose", "-v", help="Show full download/transcribe output."
+    ),
 ):
     """Transcribe audio/video from a URL or local file to a text transcript.
 
@@ -456,7 +577,9 @@ def main(
                 "Pick a different --output-dir or --format."
             )
         if final.is_dir():
-            die(f"output path is a directory, not a file: {final}. Pick a different --output-dir or slug.")
+            die(
+                f"output path is a directory, not a file: {final}. Pick a different --output-dir or slug."
+            )
         if (final.exists() or final.is_symlink()) and not force:
             die(f"output already exists: {final}\nUse --force to overwrite.")
 
@@ -467,12 +590,16 @@ def main(
 
         produced = sorted(engine_out.glob(f"*.{fmt}"))
         if not produced:
-            die(f"{engine} produced no .{fmt} output (transcription may have yielded nothing)")
+            die(
+                f"{engine} produced no .{fmt} output (transcription may have yielded nothing)"
+            )
         # prefer the one matching our slug
         src_file = next((f for f in produced if f.stem == slug), produced[0])
         # re-check just before the move to close the create-during-transcription window
         if not force and (final.exists() or final.is_symlink()):
-            die(f"output appeared during transcription: {final}\nUse --force to overwrite.")
+            die(
+                f"output appeared during transcription: {final}\nUse --force to overwrite."
+            )
         shutil.move(str(src_file), str(final))
         if final.stat().st_size == 0:
             warn("transcript is empty; no speech was detected in the audio.")
