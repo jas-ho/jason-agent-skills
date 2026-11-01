@@ -87,6 +87,12 @@ Record the exact returned identity and resume only it with the same scope. The c
 3. Ask for an adversarial stance ("review as the engineer who inherits this
    code and is skeptical of the author") and require a closing line
    `VERDICT: APPROVED` or `VERDICT: REVISE` with prioritized findings.
+   Put a scope question first, answered before any correctness finding: "Should this
+   exist at this size? Name the simplest process that does the job (a manual step plus
+   one check, fewer cases) and what it would give up." State which inputs actually occur
+   (the real data, the writers' formats) and have the reviewer tag every finding: `occurs`
+   (cites a real input or writer format that triggers it), `could` (valid input the current
+   writers do not produce) or `cannot` (excluded by an invariant that is checked).
 4. Launch in background; continue other work, but do not stage or unstage anything in that repo until the reviewed commit is made (keep other work unstaged or in another worktree).
 5. On return, **adjudicate — don't auto-apply.** The value is the different
    perspective, not a better one. Check each finding against the actual code;
@@ -99,6 +105,18 @@ Record the exact returned identity and resume only it with the same scope. The c
    diff, with "only check the fixes and what they touch". Changes made after a review get their own review, and the
    trailer records the final round's verdict. Cap at 3 rounds; on stalemate, present both
    positions to the user instead of looping.
+   Temporary rule until J-265 is decided (revisit by 2026-11-30): it applies only to a
+   fail-closed tool of about 150 lines or less (the whole tool, not the diff) that feeds no
+   counted results and is not live-deployed or data-touching. For such a tool, a `cannot`
+   finding is answered "out of scope (cannot)" and a `could` finding is answered "out of
+   scope (fails closed: <the guard or test that rejects it>)" in the commit message body,
+   with no new code; a `could` finding with no such guard or test is treated as `occurs`. An `occurs` finding is fixed or escalated, never re-tagged by the
+   author. A second REVISE on such a tool means step back, not round 3: simplify, replace
+   it with a checked manual step, or accept the residual risk with the user. A simplified
+   version gets one fresh review (a fresh session, as for high-stakes changes), which counts
+   as the third round. If the last round's open findings were all answered as out of scope,
+   the commit keeps the trailer `Reviewed-by: <reviewer> REVISE` and adds a body line
+   `Out of scope: n (listed above)`.
    For high-stakes changes (live-deployed, data-touching), after the loop
    converges run one FRESH session over the final diff — incremental rounds
    anchor on earlier rounds and can rubber-stamp.
