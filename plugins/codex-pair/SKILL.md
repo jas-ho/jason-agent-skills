@@ -93,6 +93,9 @@ Record the exact returned identity and resume only it with the same scope. The c
    (the real data, the writers' formats) and have the reviewer tag every finding: `occurs`
    (cites a real input or writer format that triggers it), `could` (valid input the current
    writers do not produce) or `cannot` (excluded by an invariant that is checked).
+   For research code, name its kind from research-code.md item 9 and what counts as a finding
+   there. A finding outside that scope is reported as a note, not REVISE; it never needs
+   another round.
 4. Launch in background; continue other work, but do not stage or unstage anything in that repo until the reviewed commit is made (keep other work unstaged or in another worktree).
 5. On return, **adjudicate — don't auto-apply.** The value is the different
    perspective, not a better one. Check each finding against the actual code;
