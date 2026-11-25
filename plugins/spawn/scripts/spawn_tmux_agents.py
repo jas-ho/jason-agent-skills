@@ -318,10 +318,18 @@ def validate(tasks: list) -> list[str]:
                 f"{where}: 'mode' must be one of {tuple(MODES)}, got {run_mode!r}"
             )
         prompt = task.get("prompt")
-        if agent != "none" and not resume and (not prompt or not str(prompt).strip()):
+        # agy remote must start promptless (see above); the user types the task
+        # remotely. A hidden delegated window would have nothing to do.
+        agy_remote = agent == "agy" and task.get("remote") and run_mode != "delegated"
+        if (
+            agent != "none"
+            and not resume
+            and not agy_remote
+            and (not prompt or not str(prompt).strip())
+        ):
             errors.append(
-                f"{where}: missing non-empty 'prompt' (required unless agent is 'none' "
-                "or 'resume' is set)"
+                f"{where}: missing non-empty 'prompt' (required unless agent is 'none', "
+                "'resume' is set, or an attended agy session has remote)"
             )
         directory = task.get("dir") or os.getcwd()
         if not os.path.isabs(directory):

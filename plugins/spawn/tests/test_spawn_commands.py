@@ -518,6 +518,17 @@ class AgyTests(unittest.TestCase):
             "remote": True,
         }
         self.assertEqual(spawn.validate([promptless_remote]), [])
+        fresh_remote = {
+            "name": "t",
+            "agent": "agy",
+            "dir": str(self.work),
+            "remote": True,
+        }
+        self.assertEqual(spawn.validate([fresh_remote]), [])
+        self.assertTrue(spawn.validate([{**fresh_remote, "prompt": "x"}]))
+        hidden = {**fresh_remote, "mode": "delegated", "permission_mode": "auto"}
+        self.assertTrue(spawn.validate([hidden]))
+        self.assertTrue(spawn.validate([{**fresh_remote, "agent": "claude"}]))
 
     def test_agy_trust_appends_once_and_keeps_other_keys(self):
         settings = self.work / "agy-settings.json"
