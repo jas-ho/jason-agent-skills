@@ -279,6 +279,14 @@ def validate(tasks: list) -> list[str]:
                 errors.append(
                     f"{where}: remote is for claude and agy; this launcher has no per-session remote flag for {agent}"
                 )
+            elif agent == "agy" and str(task.get("prompt") or "").strip():
+                # agy 1.5.16 runs /remote-control as the first input and drops
+                # --prompt-interactive (verified 2026-11-25).
+                errors.append(
+                    f"{where}: agy drops the prompt when --remote-control is set; "
+                    "launch without remote and type /remote-control in the session, "
+                    "or use remote with no prompt"
+                )
         mode = task.get("permission_mode")
         allowed_modes = {"claude": PERMISSION_MODES, "agy": AGY_MODES}.get(agent)
         if mode is not None and (allowed_modes is None or mode not in allowed_modes):

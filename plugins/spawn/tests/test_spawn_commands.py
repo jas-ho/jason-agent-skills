@@ -504,11 +504,20 @@ class AgyTests(unittest.TestCase):
             {"mode": "delegated"},
             {"mode": "delegated", "permission_mode": "accept-edits"},
             {"resume": "not-a-uuid"},
+            {"remote": True},  # agy drops the prompt with --remote-control
         ):
             with self.subTest(extra=extra):
                 self.assertTrue(spawn.validate([{**base, **extra}]))
-        ok = {**base, "mode": "delegated", "permission_mode": "auto", "remote": True}
+        ok = {**base, "mode": "delegated", "permission_mode": "auto"}
         self.assertEqual(spawn.validate([ok]), [])
+        promptless_remote = {
+            "name": "t",
+            "agent": "agy",
+            "dir": str(self.work),
+            "resume": SID,
+            "remote": True,
+        }
+        self.assertEqual(spawn.validate([promptless_remote]), [])
 
     def test_agy_trust_appends_once_and_keeps_other_keys(self):
         settings = self.work / "agy-settings.json"
