@@ -21,13 +21,13 @@ Manifest: a JSON array of task objects, each:
     {
       "name":   "short-name",         # required; tmux window name
       "prompt": "...",                # required unless agent is "none" or resume is set
-      "agent":  "claude" | "codex" | "omp" | "none",   # default "claude"
+      "agent":  "claude" | "codex" | "omp" | "agy" | "none",   # default "claude"
       "dir":    "/abs/path",          # default: current working directory
       "branch": false,                # fork a session (shared history)
       "resume": "<session-id>",       # reopen this specific old session
-      "model":  "<model>",            # optional override (claude --model / codex -m)
-      "remote": false,                # claude only: enable Remote Control (phone/web)
-      "permission_mode": "auto",      # claude only: default | acceptEdits | plan | auto
+      "model":  "<model>",            # optional override (claude --model / codex -m / agy --model)
+      "remote": false,                # claude/agy only: enable Remote Control (phone/web)
+      "permission_mode": "auto",      # claude: default | acceptEdits | plan | auto; agy: auto | accept-edits | plan
       "approval": "never",            # codex only: codex -a (never | on-request)
       "sandbox": "workspace-write",   # codex only: codex -s (read-only | workspace-write)
       "mode":   "thinking" | "delegated"  # default "thinking"; see below
@@ -53,7 +53,17 @@ Launch line per (agent x branch x resume):
     omp,    fresh          : omp [--model <model>] -- "$prompt"
     omp,    resume         : omp --resume <exact-id-or-path> [-- "$prompt"]
     omp,    resume+branch  : omp --fork <exact-id-or-path> [-- "$prompt"]
+    agy,    fresh          : agy [--model <m>] [--mode <m>] --prompt-interactive="$prompt"
+    agy,    resume         : agy --conversation <uuid> [--prompt-interactive="$prompt"]
+    agy,    branch         : rejected (agy has no fork; pass a handoff brief instead)
     none                   : plain shell in the directory (no agent launched)
+
+agy: before launch the task dir (realpath) is appended to trustedWorkspaces in
+~/.gemini/antigravity-cli/settings.json; otherwise agy stops at its "Do you
+trust the contents of this project?" prompt (trusting a parent such as $HOME
+does not cover subfolders; agy 1.5.16, verified 2026-11-25). Delegated agy
+requires permission_mode "auto": in accept-edits agy prompts for every shell
+command and a hidden window would hang.
 
 Remote Control (claude only): with "remote": true, the launch line gains
 `--remote-control=<session>/<name>` (the =name form binds the value so the flag's
@@ -63,7 +73,9 @@ Enterprise login on api.anthropic.com; the session becomes reachable (transcript
 tool output, file paths) from the phone/web, and its process exits after ~10 min
 of desktop sleep/outage. codex Remote Control is a machine-level daemon
 (`codex remote-control start`), not a per-session flag, so "remote" is rejected
-for codex and omp — see SKILL.md.
+for codex and omp — see SKILL.md. agy has both: the machine daemon (`agy
+remote-control start`) and a per-session `--remote-control` flag, which
+"remote": true adds; sessions show up at antigravity.google.com.
 
 Output: a JSON report on stdout — one entry per task with the tmux target and
 a post-spawn status check. Warnings/errors go to stderr. Exit codes:
@@ -74,6 +86,7 @@ Stdlib only. Requires tmux >= 3.4 (tested; argv-form pane commands).
 
 from __future__ import annotations
 
+import fcntl
 import json
 import os
 import re
@@ -91,7 +104,7 @@ RESERVED_SESSIONS = {"concierge"}
 
 SHELL_COMMANDS = {"bash", "zsh", "sh", "fish", "dash"}
 
-VALID_AGENTS = ("claude", "codex", "omp", "none")
+VALID_AGENTS = ("claude", "codex", "omp", "agy", "none")
 
 # mode -> tmux socket name (-L); None is the default server.
 MODES = {"thinking": None, "delegated": "delegated"}
@@ -102,6 +115,9 @@ UUID_RE = re.compile(
 
 # Modes a launch may request; bypassPermissions is deliberately not launchable here.
 PERMISSION_MODES = ("default", "acceptEdits", "plan", "auto")
+# agy --mode values; --dangerously-skip-permissions stays a deliberate manual launch.
+AGY_MODES = ("auto", "accept-edits", "plan")
+AGY_SETTINGS = Path.home() / ".gemini" / "antigravity-cli" / "settings.json"
 # codex -a / -s values this launcher passes; danger-full-access stays a deliberate manual launch.
 CODEX_APPROVALS = ("never", "on-request")
 CODEX_SANDBOXES = ("read-only", "workspace-write")
@@ -228,7 +244,7 @@ def validate(tasks: list) -> list[str]:
                     f"{where}: 'resume' looks like an option or contains "
                     f"control characters: {rid!r}"
                 )
-            elif agent in ("claude", "codex") and not UUID_RE.fullmatch(rid):
+            elif agent in ("claude", "codex", "agy") and not UUID_RE.fullmatch(rid):
                 errors.append(
                     f"{where}: {agent} 'resume' must be a full canonical UUID, "
                     f"got {rid!r}"
@@ -261,12 +277,23 @@ def validate(tasks: list) -> list[str]:
                 errors.append(f"{where}: remote is meaningless with agent 'none'")
             elif agent in ("codex", "omp"):
                 errors.append(
-                    f"{where}: remote is claude-only; this launcher has no per-session remote flag for {agent}"
+                    f"{where}: remote is for claude and agy; this launcher has no per-session remote flag for {agent}"
                 )
         mode = task.get("permission_mode")
-        if mode is not None and (agent != "claude" or mode not in PERMISSION_MODES):
+        allowed_modes = {"claude": PERMISSION_MODES, "agy": AGY_MODES}.get(agent)
+        if mode is not None and (allowed_modes is None or mode not in allowed_modes):
             errors.append(
-                f"{where}: 'permission_mode' is claude-only and one of {PERMISSION_MODES}, got {mode!r}"
+                f"{where}: 'permission_mode' is for claude {PERMISSION_MODES} "
+                f"or agy {AGY_MODES}, got {mode!r} for {agent}"
+            )
+        if agent == "agy" and task.get("mode") == "delegated" and mode != "auto":
+            errors.append(
+                f"{where}: delegated agy needs permission_mode 'auto' "
+                "(other modes prompt for every shell command and a hidden window hangs)"
+            )
+        if agent == "agy" and task.get("branch"):
+            errors.append(
+                f"{where}: agy has no fork; start fresh with a handoff brief instead"
             )
         for key, allowed in (
             ("approval", CODEX_APPROVALS),
@@ -380,10 +407,12 @@ def build_command(
     codex_record: dict | None = None,
 ) -> str:
     """The bash command string the new pane runs."""
-    if agent not in ("claude", "codex", "omp"):
+    if agent not in ("claude", "codex", "omp", "agy"):
         raise ValueError(f"unsupported agent: {agent}")
-    if remote_name and agent != "claude":
-        raise ValueError("remote is supported only for Claude")
+    if remote_name and agent not in ("claude", "agy"):
+        raise ValueError("remote is supported only for Claude and agy")
+    if branch and agent == "agy":
+        raise ValueError("agy has no fork")
     for value, allowed, label in (
         (approval, CODEX_APPROVALS, "approval policy"),
         (sandbox, CODEX_SANDBOXES, "sandbox"),
@@ -452,13 +481,28 @@ def build_command(
             launch = f"codex {verb}{opt} {shlex.quote(resume)}{arg}"
         else:
             launch = f"codex{opt}{arg}"
-    else:  # omp: installed CLI flag-tables.ts and main.ts createSessionManager
+    elif (
+        agent == "omp"
+    ):  # installed CLI flag-tables.ts and main.ts createSessionManager
         opt = f" --model {shlex.quote(model)}" if model else ""
         if resume:
             flag = "--fork" if branch else "--resume"
             launch = f"omp{opt} {flag} {shlex.quote(resume)}{arg}"
         else:
             launch = f"omp{opt}{arg}"
+    else:  # agy 1.5.16 `agy --help`
+        opt = f" --model {shlex.quote(model)}" if model else ""
+        if permission_mode:
+            if permission_mode not in AGY_MODES:
+                raise ValueError(f"unsupported agy mode: {permission_mode}")
+            opt += f" --mode {permission_mode}"
+        if remote_name:
+            opt += " --remote-control"
+        if resume:
+            opt += f" --conversation {shlex.quote(resume)}"
+        # `=` binds the value, so a flag-shaped prompt cannot become an option.
+        prompt_arg = ' --prompt-interactive="$prompt"' if promptfile else ""
+        launch = f"agy{opt}{prompt_arg}"
     # ~/.local/bin may be missing from the tmux server's PATH (e.g. a server
     # started by cron/systemd on a headless host). On success the pane cleans
     # up its own prompt file; on failure the file is kept for recovery and the
@@ -497,6 +541,40 @@ def build_command(
     )
 
 
+def trust_agy_workspace(directory: str, settings: Path = AGY_SETTINGS) -> bool:
+    """Append the exact dir to agy's trustedWorkspaces; keep every other key.
+
+    Approved by Jason 2026-11-25 instead of skipping permissions. The
+    read-modify-replace runs under a sidecar flock (concurrent spawns); agy's
+    own writes cannot be locked. A malformed settings file is left alone and
+    False is returned: a visible window then shows agy's trust prompt, a
+    delegated launch is refused by the caller.
+    """
+    path = os.path.realpath(directory)
+    try:
+        settings.parent.mkdir(parents=True, exist_ok=True)
+        with open(settings.parent / ".spawn-trust.lock", "w") as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            data = json.loads(settings.read_text()) if settings.exists() else {}
+            if not isinstance(data, dict):
+                raise ValueError("settings is not a JSON object")
+            trusted = data.setdefault("trustedWorkspaces", [])
+            if not isinstance(trusted, list):
+                raise ValueError("trustedWorkspaces is not a list")
+            if path in trusted:
+                return True
+            trusted.append(path)
+            fd, tmp = tempfile.mkstemp(dir=settings.parent, prefix=".settings.")
+            with os.fdopen(fd, "w") as fh:
+                json.dump(data, fh, indent=2)
+                fh.write("\n")
+            os.replace(tmp, settings)
+        return True
+    except (OSError, ValueError) as exc:
+        print(f"spawn: could not trust {path} for agy: {exc}", file=sys.stderr)
+        return False
+
+
 def spawn(task: dict) -> dict:
     name = str(task["name"]).strip()
     agent = (task.get("agent") or "claude").lower()
@@ -527,6 +605,14 @@ def spawn(task: dict) -> dict:
             with os.fdopen(fd, "w") as fh:
                 fh.write(prompt)
         remote_name = title if remote else None
+        if (
+            agent == "agy"
+            and not trust_agy_workspace(directory)
+            and mode == "delegated"
+        ):
+            raise RuntimeError(
+                f"agy trust update failed for {directory}; a hidden window would hang at the trust prompt"
+            )
         cmd_args = [
             "bash",
             "-c",

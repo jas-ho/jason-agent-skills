@@ -435,5 +435,113 @@ class IdentityTests(unittest.TestCase):
         self.assertIn("identity unavailable", helper)
 
 
+class AgyTests(unittest.TestCase):
+    setUpClass = classmethod(CommandTests.setUpClass.__func__)
+
+    def agy(self, **kwargs):
+        command = spawn.build_command(
+            "agy",
+            kwargs.get("branch", False),
+            kwargs.get("resume"),
+            kwargs.get("model"),
+            str(self.prompt),
+            kwargs.get("remote_name"),
+            kwargs.get("permission_mode"),
+        )
+        fake = f'agy() {{ python3 {shlex.quote(str(self.capture))} "$@"; }}\ntrash() {{ :; }}\n'
+        result = subprocess.run(
+            ["bash", "-c", fake + command],
+            cwd=self.work,
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertFalse((self.work / "never-created").exists())
+        return json.loads(result.stdout)
+
+    def test_agy_fresh_resume_and_options(self):
+        self.assertEqual(self.agy(), [f"--prompt-interactive={self.message}"])
+        args = self.agy(
+            resume=SID,
+            model="gemini-4-hydrogen-low",
+            permission_mode="auto",
+            remote_name="s/n",
+        )
+        self.assertEqual(
+            args,
+            [
+                "--model",
+                "gemini-4-hydrogen-low",
+                "--mode",
+                "auto",
+                "--remote-control",
+                "--conversation",
+                SID,
+                f"--prompt-interactive={self.message}",
+            ],
+        )
+
+    def test_agy_flag_shaped_prompt_stays_bound(self):
+        original = self.prompt.read_text()
+        try:
+            self.prompt.write_text("--dangerously-skip-permissions")
+            self.assertEqual(
+                self.agy(), ["--prompt-interactive=--dangerously-skip-permissions"]
+            )
+        finally:
+            self.prompt.write_text(original)
+
+    def test_agy_rejects_fork_bad_mode_and_unattended_prompts(self):
+        with self.assertRaises(ValueError):
+            spawn.build_command("agy", True, SID, None, None)
+        base = {"name": "t", "agent": "agy", "dir": str(self.work), "prompt": "x"}
+        self.assertEqual(spawn.validate([base]), [])
+        for extra in (
+            {"branch": True},
+            {"permission_mode": "acceptEdits"},
+            {"mode": "delegated"},
+            {"mode": "delegated", "permission_mode": "accept-edits"},
+            {"resume": "not-a-uuid"},
+        ):
+            with self.subTest(extra=extra):
+                self.assertTrue(spawn.validate([{**base, **extra}]))
+        ok = {**base, "mode": "delegated", "permission_mode": "auto", "remote": True}
+        self.assertEqual(spawn.validate([ok]), [])
+
+    def test_agy_trust_appends_once_and_keeps_other_keys(self):
+        settings = self.work / "agy-settings.json"
+        settings.write_text(json.dumps({"trustedWorkspaces": ["/a"], "other": 1}))
+        target = self.work / "proj"
+        target.mkdir(exist_ok=True)
+        for _ in range(2):
+            spawn.trust_agy_workspace(str(target), settings)
+        data = json.loads(settings.read_text())
+        self.assertEqual(data["other"], 1)
+        self.assertEqual(data["trustedWorkspaces"], ["/a", os.path.realpath(target)])
+        settings.write_text("not json")
+        self.assertFalse(spawn.trust_agy_workspace(str(target), settings))
+        self.assertEqual(settings.read_text(), "not json")
+
+    def test_delegated_agy_refused_when_trust_fails(self):
+        task = {
+            "name": "t",
+            "agent": "agy",
+            "dir": str(self.work),
+            "prompt": "x",
+            "mode": "delegated",
+            "permission_mode": "auto",
+        }
+        calls = []
+        with (
+            patch.object(spawn, "trust_agy_workspace", return_value=False),
+            patch.object(spawn, "tmux", side_effect=lambda *a, **k: calls.append(a)),
+        ):
+            with self.assertRaises(RuntimeError):
+                spawn.spawn(task)
+        self.assertEqual(calls, [])  # nothing launched
+
+
 if __name__ == "__main__":
     unittest.main()
