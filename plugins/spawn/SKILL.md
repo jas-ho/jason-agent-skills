@@ -29,6 +29,15 @@ prompt per task, then call that script.
      `codex` from Codex, `omp` from OMP). Use the other host only if the user asks. Always put
      the resolved `agent` in the manifest because the bundled script's
      compatibility default is `claude`.
+     `agy` (Antigravity CLI, Gemini) runs on the Mac and cairn when the user
+     asks for Gemini or agy; always set `"model"` (`gemini-4-neon-high` for
+     real work, `gemini-4-hydrogen-low` for tests). agy has no fork (`branch`
+     is refused), resumes only by full conversation UUID, needs
+     `"permission_mode": "auto"` for delegated runs, and with `remote` takes no
+     prompt (so delegated plus remote is impossible). Spawn adds the folder to
+     agy's trusted workspaces. Hooks are not wired into agy yet, so don't give
+     it commits or co-edit files. Details: "agy" in
+     `~/.claude/context-coding/ai-tools.md`.
      `none` if the user says they'll drive the window themselves ("no agent",
      "I'll take it from there") — the window opens with a plain shell.
    - **Branch**: set `"branch": true` if the user says "branch" or "fork" —
@@ -75,11 +84,14 @@ prompt per task, then call that script.
      a separate server (`tmux -L delegated`) that the user's pickers and status
      bar don't show. Use delegated when the user says "delegate", "in the
      background", or the task needs no live steering.
-   - **Remote Control** (`"remote": true`, claude only): enables Claude Code's
+   - **Remote Control** (`"remote": true`, claude and agy): enables Claude Code's
      Remote Control so the user can watch and steer the spawned session from
      their phone or claude.ai/code. **On by default for every claude spawn**
      (Jason, 09.10.2026): set `"remote": true` unless an exception under
-     "Remote Control" below applies. codex has no per-session equivalent (its Remote Control is a
+     "Remote Control" below applies. For agy it is opt-in and adds agy's own
+     `--remote-control`: leave `prompt` empty (agy would drop it, and the
+     launcher refuses one); the user types the task at
+     antigravity.google.com. codex has no per-session equivalent (its Remote Control is a
      machine daemon); the script rejects `"remote": true` for Codex and OMP.
 
 3. **Compose the prompt per task** — the part only the running agent can do
@@ -206,8 +218,9 @@ The script's compatibility default is `agent: "claude"`, but this skill always
 sets `agent` to the resolved current/requested host. Other defaults: `dir`
 current working directory, `branch` `false`, `resume`/`model` unset (CLI picks
 its default model), `remote` `false`, `mode` `"thinking"`, `permission_mode`
-unset (claude only: `default`, `acceptEdits`, `plan` or `auto`; set it only
-when carrying a known mode over, as session-teleport does). `approval` and `sandbox` are unset by default (Codex only: `-a never | on-request`, `-s read-only | workspace-write`). Choose the host and complete acceptance requirements before launching:
+unset (claude: `default`, `acceptEdits`, `plan` or `auto`; agy: `auto`,
+`accept-edits` or `plan`; set it only when carrying a known mode over, as
+session-teleport does, or for a delegated agy run, which needs `auto`). `approval` and `sandbox` are unset by default (Codex only: `-a never | on-request`, `-s read-only | workspace-write`). Choose the host and complete acceptance requirements before launching:
 
 | Codex job                                         | Mac                                                                                  | cairn                                                                                                |
 | ------------------------------------------------- | ------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
@@ -240,6 +253,9 @@ session title is the label shown there). Verified working for fresh, resume, and
 spawns. Requires a Pro/Max/Team/Enterprise login on api.anthropic.com (not API
 keys, not Bedrock/Vertex/Foundry). Codex and OMP are rejected by this launcher. Codex Remote Control is a
 machine-wide daemon (`codex remote-control start`), not a per-session flag.
+For agy, `remote` adds `--remote-control`; agy then ignores any starting prompt,
+so the launcher refuses a non-empty prompt with `remote`, and
+the session is steered at antigravity.google.com (verified 2026-11-25).
 
 Trade-offs (verified against Claude Code docs + the installed CLI, 2026-07-13):
 
