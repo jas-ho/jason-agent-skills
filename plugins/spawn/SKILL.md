@@ -35,8 +35,8 @@ prompt per task, then call that script.
      is refused), resumes only by full conversation UUID, needs
      `"permission_mode": "auto"` for delegated runs, and with `remote` takes no
      prompt (so delegated plus remote is impossible). Spawn adds the folder to
-     agy's trusted workspaces. Hooks are not wired into agy yet, so don't give
-     it commits or co-edit files. Details: "agy" in
+     agy's trusted workspaces. The commit-review and co-edit guards run in agy
+     through a hook adapter. Details: "agy" in
      `~/.claude/context-coding/ai-tools.md`.
      `none` if the user says they'll drive the window themselves ("no agent",
      "I'll take it from there") — the window opens with a plain shell.
